@@ -1,3 +1,4 @@
+import { cheer } from '../lib/cheer';
 import { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -18,7 +19,7 @@ export default function ProgressPhotos({ userId }) {
     })));
   };
   useEffect(() => { load(); }, [userId]);
-  const add = async (file) => { setBusy(true); try { await uploadMedia(userId, 'progress', file); await load(); } finally { setBusy(false); } };
+  const add = async (file) => { setBusy(true); try { await uploadMedia(userId, 'progress', file); await load(); cheer('photo'); } finally { setBusy(false); } };
   const del = async (p) => { if (!confirm('Delete this progress photo?')) return; await supabase.storage.from('media').remove([p.path]); load(); };
   const first = files[0], last = files.at(-1);
   return (

@@ -1,3 +1,4 @@
+import { cheer } from '../lib/cheer';
 import { useEffect, useRef, useState } from 'react';
 import { Sparkles, X, Send, Camera, ImagePlus, Check, Trash2 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
@@ -79,6 +80,7 @@ export default function ChatLog() {
       const done = await saveAction(user.id, a, msg.photoPath);
       patch(msg.id, a._id, { _status: 'saved', _msg: done });
       notifyDataChanged();
+      cheer(a.type === 'meal' && a.plan_check === 'on_plan' ? 'on_plan' : a.type === 'workout' ? 'workout' : a.type === 'weight' ? 'weight' : a.type === 'period' ? 'period' : 'chat');
     } catch (e) {
       patch(msg.id, a._id, { _status: 'pending', _msg: e.message });
     }

@@ -1,3 +1,4 @@
+import { cheer } from '../../lib/cheer';
 import { useEffect, useMemo, useState } from 'react';
 import { FileUp, Sparkles, Trash2, Plus, Save } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -198,7 +199,7 @@ export function LabUploader({ userId, onSaved }) {
       })));
       if (e2) throw e2;
       setRows([]); setFile(null); setLab('');
-      show('Report saved'); onSaved();
+      cheer('lab'); onSaved();
     } catch (e) { show(e.message, 'bad'); }
     setBusy('');
   };

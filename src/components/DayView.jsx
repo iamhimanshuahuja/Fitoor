@@ -1,3 +1,4 @@
+import { cheer } from '../lib/cheer';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Trash2, Sparkles, Check, X, Scale, Dumbbell, Flame, Pencil, Timer, Bean } from 'lucide-react';
@@ -90,7 +91,9 @@ export default function DayView({ userId, date, mode = 'user', features }) {
           onChange={async (juices) => {
             const next = { ...(habits.habits || {}), juices };
             setHabits({ ...habits, habits: next });
-            await supabase.from('habit_logs').upsert({ user_id: userId, log_date: date, habits: next, supplements: habits.supplements || {} }, { onConflict: 'user_id,log_date' });
+            const { error } = await supabase.from('habit_logs').upsert({ user_id: userId, log_date: date, habits: next, supplements: habits.supplements || {} }, { onConflict: 'user_id,log_date' });
+            const n = (j) => ['red', 'smoothie_am', 'green1', 'smoothie_pm', 'white'].filter((k) => j?.[k]).length + (j?.green2 || j?.tangy ? 1 : 0);
+            if (!error && n(juices) === 6 && n(habits.habits?.juices) < 6) cheer('juice_done');
           }} />
       )}
 
@@ -243,8 +246,8 @@ function WeightQuick({ userId, date, weight, editable, onSaved, setLightbox }) {
     setPending(null);
     const { error } = await supabase.from('weight_logs').upsert(row, { onConflict: 'user_id,log_date' });
     setBusy(false);
-    setMsg(error ? error.message : 'Saved');
-    if (!error) onSaved();
+    setMsg(error ? error.message : '');
+    if (!error) { onSaved(); cheer('weight'); }
   };
 
   const fromPhoto = async (file) => {
@@ -322,6 +325,7 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
       });
       if (error) throw error;
       setDesc(''); setOpen(false); onChange();
+      cheer(followed === true ? 'on_plan' : 'meal');
     } catch (e) { setErr(e.message); }
     setBusy(false);
   };
@@ -330,9 +334,9 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
   const saveEdit = async () => {
     const num = (v) => (v === '' || v == null ? null : Number(v));
     await supabase.from('meal_logs').update({ description: editing.description || null, kcal: num(editing.kcal), protein_g: num(editing.protein_g) }).eq('id', editing.id);
-    setEditing(null); onChange();
+    setEditing(null); onChange(); cheer('update');
   };
-  const setFollowed = async (m, v) => { await supabase.from('meal_logs').update({ followed: v }).eq('id', m.id); onChange(); };
+  const setFollowed = async (m, v) => { const { error } = await supabase.from('meal_logs').update({ followed: v }).eq('id', m.id); onChange(); if (!error && v && m.followed !== true) cheer('on_plan'); };
   const del = async (m) => {
     if (!confirm('Delete this meal entry?')) return;
     if (m.photo_path) await supabase.storage.from('media').remove([m.photo_path]);
@@ -401,10 +405,15 @@ function HabitsCard({ userId, date, value, editable, has, onSaved }) {
   const [v, setV] = useState(value);
   useEffect(() => setV(value), [value]);
   const save = async (next) => {
+    const prev = v;
     setV(next);
     if (!editable) return;
-    await supabase.from('habit_logs').upsert({ user_id: userId, log_date: date, habits: next.habits || {}, supplements: next.supplements || {} }, { onConflict: 'user_id,log_date' });
+    const { error } = await supabase.from('habit_logs').upsert({ user_id: userId, log_date: date, habits: next.habits || {}, supplements: next.supplements || {} }, { onConflict: 'user_id,log_date' });
     onSaved && onSaved();
+    if (error) return;
+    const done = (x) => HABITS.filter((h) => x?.habits?.[h.key]).length;
+    if (done(next) === HABITS.length && done(prev) < HABITS.length) cheer('habits_all');
+    else if (Number(next.habits?.water_glasses || 0) >= 8 && Number(prev.habits?.water_glasses || 0) < 8) cheer('water');
   };
   const water = Number(v.habits?.water_glasses || 0);
   return (

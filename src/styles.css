@@ -1096,3 +1096,15 @@ input.locked { background: #EEF6E8; font-weight: 700; letter-spacing: .05em; }
 .wh-strip { display: inline-flex; border-radius: 999px; padding: 6px 14px; font-size: .9rem; background: #FFE3EE; }
 .cal-tag.period { background: #FFD0DC; border-radius: 6px; padding: 0 3px; }
 @media (max-width: 600px) { .wh-stats { grid-template-columns: repeat(2, 1fr); } }
+
+/* ===================== Cheer toast ===================== */
+.cheer-wrap { position: fixed; left: 0; right: 0; bottom: calc(96px + var(--safe-b)); z-index: 120; display: flex; justify-content: center; pointer-events: none; padding: 0 14px; }
+.cheer { pointer-events: auto; display: flex; align-items: center; gap: 12px; max-width: 420px; width: 100%; text-align: left; padding: 12px 16px; border-radius: 18px; border: 2px solid var(--ink); background: var(--lime); color: var(--ink); box-shadow: 4px 4px 0 var(--ink); cursor: pointer; animation: cheer-in .35s cubic-bezier(.2, 1.4, .4, 1) both; font: inherit; }
+.cheer-emoji { font-size: 1.8rem; line-height: 1; animation: cheer-pop .6s .15s both; }
+.cheer b { display: block; font: 800 1.02rem var(--display); }
+.cheer small { display: block; font-size: .88rem; opacity: .85; }
+@keyframes cheer-in { from { transform: translateY(24px) scale(.96); } to { transform: none; } }
+@keyframes cheer-pop { 0% { transform: scale(.6) rotate(-12deg); } 60% { transform: scale(1.25) rotate(6deg); } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .cheer, .cheer-emoji { animation: none; } }
+@media (min-width: 900px) { .cheer-wrap { bottom: 28px; justify-content: flex-start; padding-left: 28px; } }
+body.chat-open .cheer-wrap { bottom: calc(150px + var(--safe-b)); }

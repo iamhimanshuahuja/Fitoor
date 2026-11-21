@@ -1,3 +1,4 @@
+import { cheer } from '../lib/cheer';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Trash2 } from 'lucide-react';
@@ -31,7 +32,7 @@ export function WomensHealthForm({ profile, onSaved, coachView = false }) {
       track_cycle: f.track_cycle, wh_updated_at: new Date().toISOString(),
     }).eq('id', profile.id);
     setBusy(false);
-    show(error ? error.message : 'Saved', error ? 'bad' : 'ok');
+    if (error) show(error.message, 'bad'); else cheer('update');
     if (!error) onSaved?.();
   };
   return (
@@ -87,11 +88,11 @@ export function PeriodTracker({ userId, editable = true, title = '🩸 Period tr
     const row = { user_id: userId, start_date: form.start_date, end_date: form.end_date || null, flow: form.flow || null, symptoms: form.symptoms || [], notes: form.notes || null };
     const { error } = form.id ? await supabase.from('period_logs').update(row).eq('id', form.id) : await supabase.from('period_logs').insert(row);
     if (error) return show(/duplicate|unique/i.test(error.message) ? 'There is already a period starting that day' : error.message, 'bad');
-    setForm(null); show('Saved'); load();
+    setForm(null); cheer('period'); load();
   };
   const endToday = async () => {
     const { error } = await supabase.from('period_logs').update({ end_date: today() }).eq('id', open.id);
-    show(error ? error.message : 'Marked as ended today', error ? 'bad' : 'ok'); load();
+    if (error) show(error.message, 'bad'); else cheer('period'); load();
   };
   const del = async (l) => { if (confirm(`Delete the period starting ${fmtLong(l.start_date)}?`)) { await supabase.from('period_logs').delete().eq('id', l.id); load(); } };
   const toggleSym = (s) => setForm({ ...form, symptoms: form.symptoms.includes(s) ? form.symptoms.filter((x) => x !== s) : [...form.symptoms, s] });

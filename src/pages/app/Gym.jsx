@@ -1,3 +1,4 @@
+import { cheer } from '../../lib/cheer';
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trash2, Sparkles, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -85,7 +86,7 @@ function WorkoutLogger({ userId, onSaved }) {
     setBusy(false);
     if (e2) return show(e2.message, 'bad');
     setItems([]); setNotes(''); setDuration(''); setLabel('');
-    show('Workout saved 💪'); onSaved();
+    cheer('workout'); onSaved();
   };
 
   return (

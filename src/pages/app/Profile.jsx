@@ -1,3 +1,4 @@
+import { cheer } from '../../lib/cheer';
 import { WomensHealthForm, PeriodTracker } from '../../components/WomensHealth';
 import { isFemale } from '../../lib/cycle';
 import { LoginHistory } from '../../components/ActivityLog';
@@ -42,7 +43,7 @@ export default function Profile() {
       height_cm: f.height_cm || null, start_weight: f.start_weight || null, target_weight: f.target_weight || null, goal: f.goal || null,
     }).eq('id', f.id);
     setBusy(false);
-    show(error ? error.message : 'Profile saved', error ? 'bad' : 'ok');
+    if (error) show(error.message, 'bad'); else cheer('profile');
     refresh();
   };
   const isIOS = /iphone|ipad/i.test(navigator.userAgent);
