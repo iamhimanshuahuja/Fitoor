@@ -1,4 +1,5 @@
 // Fitoor AI function (Supabase Edge Function, Deno)
+// Tasks: scale | meal | machine | lab | summary (coach) | chat (log-by-chat assistant, text and/or image)
 // Deploy:  supabase functions deploy ai
 // Secrets: supabase secrets set AI_PROVIDER=anthropic AI_API_KEY=... [AI_MODEL=...] [AI_BASE_URL=...]
 //
@@ -51,6 +52,34 @@ Return JSON only:
  "exercises": [{"name": string, "muscle_group": "chest"|"back"|"legs"|"shoulders"|"arms"|"core"|"full_body"|"cardio",
                 "equipment": "barbell"|"dumbbell"|"machine"|"cable"|"bodyweight"|"cardio_machine"|"other"}] (1-4 items)}`,
 
+  chat: (b) => `You are Fitoor's logging assistant inside an Indian diet & fitness app. The user writes casually (English or Hinglish) and may attach a photo.
+Turn what they say into log entries. Today is ${b.today} (${b.weekday}), time now ${b.now}. "yesterday" = the day before today.
+Meal slots (key: label, usual time): ${JSON.stringify(b.slots)}. Pick the slot from their words, else from the time of day.
+Their diet plan per slot (title / avoid list): ${JSON.stringify(b.plan || {}).slice(0, 4000)}
+Habit keys: ${JSON.stringify(b.habits)}. Supplement keys: ${JSON.stringify(b.supplements)}.
+Day labels for workouts: ${JSON.stringify(b.day_labels)}. Prefer these exercise names when they match: ${JSON.stringify((b.library || []).slice(0, 200))}.
+Recent chat (oldest first): ${JSON.stringify((b.history || []).slice(-8)).slice(0, 3000)}
+User message: ${JSON.stringify(b.text || '')}
+${b.image ? 'A photo is attached. If it is food, log it as a meal (uses_photo true). If it is a weighing scale, read the number as a weight (uses_photo true). If it is gym equipment, name it in the reply and suggest exercises; only log a workout if they gave sets/time.' : ''}
+Rules:
+- Only log what they actually said or showed. Never invent foods, sets or numbers. Indian portions (1 roti ~ 100 kcal, 1 katori dal ~ 150 kcal).
+- Meals: estimate kcal / protein / carbs / fat. Plan check uses the coach's rules: plate ~50% veg, 25% protein, 25% whole grains; flag high-GI/refined foods (poha, rava upma, idli, white rice, bread, biscuits, namkeen, bakery, paratha) and acidic items (milk tea/coffee, sugar/jaggery, fried snacks, alcohol), and anything on that slot's avoid list.
+- Water: count glasses (1 glass = 250 ml; 1 L = 4 glasses).
+- If something important is missing or unclear (e.g. which day, a number), log what is clear and ask ONE short question in reply.
+- If they only ask a question or chat, return no actions and answer briefly. No medical advice; for lab or health questions say to talk to their doctor or coach.
+- reply: friendly, short (max 35 words), second person, can use one emoji.
+Return JSON only:
+{"reply": string,
+ "actions": [
+  {"type":"meal","date":"YYYY-MM-DD","slot":slot key,"description":string,"kcal":number,"protein_g":number,"carbs_g":number,"fat_g":number,"plan_check":"on_plan"|"partly"|"off_plan"|"unknown","plan_note":string (max 18 words),"uses_photo":boolean}
+  | {"type":"weight","date":"YYYY-MM-DD","weight_kg":number,"waist_cm":number|null,"uses_photo":boolean}
+  | {"type":"water","date":"YYYY-MM-DD","glasses":number}
+  | {"type":"habit","date":"YYYY-MM-DD","key":habit key}
+  | {"type":"supplement","date":"YYYY-MM-DD","key":supplement key}
+  | {"type":"workout","date":"YYYY-MM-DD","day_label":string|null,"duration_min":number|null,"notes":string|null,
+     "exercises":[{"name":string,"kind":"strength"|"cardio"|"mobility","muscle_group":"chest"|"back"|"legs"|"shoulders"|"arms"|"core"|"full_body"|"cardio","equipment":"barbell"|"dumbbell"|"machine"|"cable"|"bodyweight"|"cardio_machine"|"other",
+       "sets":[{"reps":number|null,"weight_kg":number|null,"duration_min":number|null,"incline":number|null,"distance_km":number|null}]}]}
+ ]}`,
   summary: (b) => `You are helping a diet & fitness coach in India review one client's last 7 days.
 Client data (JSON): ${JSON.stringify(b.data).slice(0, 30000)}
 Write a short, warm, specific review the coach can send. Vegetarian-friendly Indian food suggestions only.
@@ -167,20 +196,23 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
   const task = body.task as string;
   if (!PROMPTS[task]) return json({ error: `Unknown task "${task}"` }, 400);
-  const TEXT_ONLY = ['summary'];
+  const TEXT_ONLY = ['summary', 'chat'];
   const data = body.image || body.file;
   if (!data && !TEXT_ONLY.includes(task)) return json({ error: 'No image/file provided' }, 400);
   if (data && data.length > 6_000_000) return json({ error: 'File too large (max ~4 MB)' }, 413);
   if (task === 'summary' && prof?.role !== 'admin') return json({ error: 'Coach only' }, 403);
+  if (task === 'chat' && !data && !String(body.text || '').trim()) return json({ error: 'Type something or add a photo' }, 400);
 
   try {
-    const text = await callAI(PROMPTS[task](body), data ? { data, mime: body.mime || 'image/webp' } : null);
+    const text = await callAI(PROMPTS[task]({ ...body, image: !!data }), data ? { data, mime: body.mime || 'image/webp' } : null);
     if (task === 'lab') {
       const result = parseLab(text);
       if (!result.results.length) return json({ error: 'Could not read any test results from this file' }, 422);
       return json({ result });
     }
-    return json({ result: parseJSON(text) });
+    const result = parseJSON(text);
+    if (task === 'chat') return json({ result: { reply: String(result?.reply || ''), actions: Array.isArray(result?.actions) ? result.actions.slice(0, 12) : [] } });
+    return json({ result });
   } catch (e) {
     console.error(task, e);
     return json({ error: `AI failed: ${(e as Error).message}` }, 502);

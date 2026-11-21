@@ -62,6 +62,7 @@ export default function CalendarView({ userId, mode = 'user', features }) {
     setData(days);
   }, [userId, month]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { window.addEventListener('ft:data-changed', load); return () => window.removeEventListener('ft:data-changed', load); }, [load]);
 
   // Grid: weeks starting Monday, padded with blanks
   const cells = useMemo(() => {

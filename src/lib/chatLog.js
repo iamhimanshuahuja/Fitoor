@@ -1,0 +1,119 @@
+import { supabase } from './supabase';
+import { runAI } from './ai';
+import { today, addDays } from './dates';
+import { SLOTS, HABITS, SUPPLEMENTS, DAY_LABELS, MUSCLES, EQUIPMENT } from './constants';
+
+/** Which feature each action type needs. */
+export const ACTION_FEATURE = { meal: 'meals', weight: 'weight', water: 'habits', habit: 'habits', supplement: 'supplements', workout: 'gym' };
+
+/** Ask the AI to turn a chat message (and optional photo) into log entries. Nothing is saved here. */
+export async function askChat({ userId, text, image, mime, history }) {
+  const [{ data: plan }, { data: ex }] = await Promise.all([
+    supabase.from('diet_plans').select('slots').eq('user_id', userId).eq('is_active', true).maybeSingle(),
+    supabase.from('exercises').select('name').order('name').limit(300),
+  ]);
+  const planSlots = {};
+  (plan?.slots || []).forEach((s) => { planSlots[s.key] = { title: s.title, avoid: s.avoid || [] }; });
+  const now = new Date();
+  return runAI('chat', {
+    text, image, mime,
+    today: today(), weekday: now.toLocaleDateString('en-IN', { weekday: 'long' }),
+    now: now.toTimeString().slice(0, 5),
+    slots: SLOTS.map((s) => ({ key: s.key, label: s.label, time: s.time })),
+    plan: planSlots,
+    habits: HABITS.map((h) => h.key), supplements: SUPPLEMENTS.map((s) => s.key), day_labels: DAY_LABELS,
+    library: (ex || []).map((e) => e.name),
+    history: (history || []).map((m) => ({ from: m.role, text: m.text })).slice(-8),
+  });
+}
+
+const n = (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Number(v));
+/** AI dates must be real and not in the future; anything else falls back to today. */
+const safeDate = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(d || '') && d <= today() && d >= addDays(today(), -60) ? d : today());
+
+async function mergeHabits(userId, date, fn) {
+  const { data } = await supabase.from('habit_logs').select('habits, supplements').eq('user_id', userId).eq('log_date', date).maybeSingle();
+  const next = fn({ habits: { ...(data?.habits || {}) }, supplements: { ...(data?.supplements || {}) } });
+  const { error } = await supabase.from('habit_logs').upsert({ user_id: userId, log_date: date, ...next }, { onConflict: 'user_id,log_date' });
+  if (error) throw error;
+}
+
+/** Save one confirmed action. Returns a short "what was saved" string. */
+export async function saveAction(userId, a, photoPath) {
+  const date = safeDate(a.date);
+  if (a.type === 'meal') {
+    const slot = SLOTS.some((s) => s.key === a.slot) ? a.slot : 'other';
+    const followed = a.plan_check === 'on_plan' ? true : a.plan_check === 'off_plan' ? false : null;
+    const { error } = await supabase.from('meal_logs').insert({
+      user_id: userId, log_date: date, slot, description: a.description || null,
+      photo_path: a.uses_photo ? photoPath || null : null, followed,
+      kcal: n(a.kcal), protein_g: n(a.protein_g), carbs_g: n(a.carbs_g), fat_g: n(a.fat_g),
+      ai: { source: 'chat', plan_check: a.plan_check, plan_note: a.plan_note, items: a.description ? [a.description] : [] },
+    });
+    if (error) throw error;
+    return 'Meal saved';
+  }
+  if (a.type === 'weight') {
+    const kg = n(a.weight_kg);
+    if (!kg || kg < 20 || kg > 400) throw new Error('Check the weight');
+    const waist = n(a.waist_cm);
+    const row = { user_id: userId, log_date: date, weight_kg: kg, source: a.uses_photo ? 'ai' : 'manual' };
+    if (waist && waist > 30 && waist < 250) row.waist_cm = waist;
+    if (a.uses_photo && photoPath) row.photo_path = photoPath;
+    const { error } = await supabase.from('weight_logs').upsert(row, { onConflict: 'user_id,log_date' });
+    if (error) throw error;
+    return 'Weight saved';
+  }
+  if (a.type === 'water') {
+    const g = Math.max(0, Math.round(n(a.glasses) || 0));
+    if (!g) throw new Error('How many glasses?');
+    await mergeHabits(userId, date, (x) => ({ ...x, habits: { ...x.habits, water_glasses: Number(x.habits.water_glasses || 0) + g } }));
+    return `+${g} glass${g > 1 ? 'es' : ''} of water`;
+  }
+  if (a.type === 'habit') {
+    if (!HABITS.some((h) => h.key === a.key)) throw new Error('Unknown habit');
+    await mergeHabits(userId, date, (x) => ({ ...x, habits: { ...x.habits, [a.key]: true } }));
+    return 'Habit ticked';
+  }
+  if (a.type === 'supplement') {
+    if (!SUPPLEMENTS.some((s) => s.key === a.key)) throw new Error('Unknown supplement');
+    await mergeHabits(userId, date, (x) => ({ ...x, supplements: { ...x.supplements, [a.key]: true } }));
+    return 'Supplement ticked';
+  }
+  if (a.type === 'workout') {
+    const exs = (a.exercises || []).filter((e) => e.name);
+    if (!exs.length && !n(a.duration_min)) throw new Error('Add at least one exercise');
+    const { data: lib } = await supabase.from('exercises').select('id, name');
+    const ids = [];
+    for (const e of exs) {
+      let hit = (lib || []).find((x) => x.name.toLowerCase() === e.name.trim().toLowerCase());
+      if (!hit) {
+        const { data, error } = await supabase.from('exercises').insert({
+          name: e.name.trim(), kind: ['strength', 'cardio', 'mobility'].includes(e.kind) ? e.kind : 'strength',
+          muscle_group: MUSCLES.includes(e.muscle_group) ? e.muscle_group : 'full_body',
+          equipment: EQUIPMENT.includes(e.equipment) ? e.equipment : 'other',
+        }).select('id, name').single();
+        if (error) throw error;
+        hit = data;
+      }
+      ids.push(hit.id);
+    }
+    const { data: w, error } = await supabase.from('workouts').insert({
+      user_id: userId, log_date: date, day_label: a.day_label || null, duration_min: n(a.duration_min), notes: a.notes || 'Logged by chat',
+    }).select().single();
+    if (error) throw error;
+    const sets = exs.flatMap((e, i) => (e.sets?.length ? e.sets : [{}]).map((s, k) => ({
+      workout_id: w.id, user_id: userId, exercise_id: ids[i], set_no: k + 1,
+      reps: n(s.reps), weight_kg: n(s.weight_kg), duration_min: n(s.duration_min), incline: n(s.incline), distance_km: n(s.distance_km),
+    })));
+    if (sets.length) {
+      const { error: e2 } = await supabase.from('workout_sets').insert(sets);
+      if (e2) throw e2;
+    }
+    return 'Workout saved 💪';
+  }
+  throw new Error('Unknown entry');
+}
+
+/** Tell open screens (Today, Calendar…) to reload. */
+export const notifyDataChanged = () => window.dispatchEvent(new Event('ft:data-changed'));

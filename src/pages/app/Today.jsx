@@ -66,7 +66,7 @@ export default function Today() {
     <div className="page">
       <div className="page-head">
         <div className="greet-row">
-          <h1>{greet}, {profile?.full_name?.split(' ')[0] || 'there'}</h1>
+          <h1><span className="phone-only">{greet}, {profile?.full_name?.split(' ')[0] || 'there'}</span><span className="desk-only">Your day</span></h1>
           {streak != null && (
             <span className={`streak ${streak ? '' : 'cold'}`} title="Days in a row with something logged">
               {streak ? `🔥 ${streak}-day streak` : '🌱 Start your streak today'}

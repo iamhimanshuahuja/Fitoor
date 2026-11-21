@@ -57,6 +57,7 @@ export default function DayView({ userId, date, mode = 'user', features }) {
   }, [userId, date]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { window.addEventListener('ft:data-changed', load); return () => window.removeEventListener('ft:data-changed', load); }, [load]);
 
   const kcal = meals.reduce((s, m) => s + (Number(m.kcal) || 0), 0);
   const protein = meals.reduce((s, m) => s + (Number(m.protein_g) || 0), 0);
