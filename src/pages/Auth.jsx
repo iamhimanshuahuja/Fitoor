@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase, rememberMe, setRememberMe } from '../lib/supabase';
+import { trackLogin, markSessionLogged, clearSessionMark } from '../lib/track';
 import { useAuth } from '../lib/auth';
 import { Logo, Spinner } from '../components/ui';
 
@@ -25,22 +26,28 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [remember, setRemember] = useState(rememberMe());
 
   useEffect(() => { if (user) nav(loc.state?.from || (isAdmin ? '/admin' : '/app'), { replace: true }); }, [user, isAdmin]);
 
   const submit = async (e) => {
     e.preventDefault(); setBusy(true); setErr('');
+    setRememberMe(remember);       // decides where the new session is stored
+    markSessionLogged();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
-    if (error) setErr(error.message);
+    if (error) { clearSessionMark(); return setErr(error.message); }
+    trackLogin('sign_in');
   };
   return (
     <AuthFrame title="Welcome back" sub="Log in to track today's meals and workout.">
       <form onSubmit={submit} className="form">
         <label>Email<input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
         <label>Password<input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+        <label className="check remember"><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Keep me signed in on this device</label>
         {err && <p className="error">{err}</p>}
         <button className="btn btn-primary btn-block" disabled={busy}>{busy ? <Spinner /> : 'Log in'}</button>
+        <p className="small muted auth-note">Untick on a shared phone or computer: you’ll be signed out when you close the browser.</p>
       </form>
       <p className="auth-alt"><Link to="/reset">Forgot password?</Link> · New here? <Link to="/signup">Create an account</Link></p>
     </AuthFrame>
@@ -57,13 +64,14 @@ export function Signup() {
 
   const submit = async (e) => {
     e.preventDefault(); setBusy(true); setErr('');
+    setRememberMe(true); markSessionLogged();
     const { data, error } = await supabase.auth.signUp({
       email: f.email, password: f.password,
       options: { data: { full_name: f.full_name, phone: f.phone }, emailRedirectTo: `${location.origin}/app` },
     });
     setBusy(false);
-    if (error) return setErr(error.message);
-    if (data.session) nav('/app'); else setDone(true);
+    if (error) { clearSessionMark(); return setErr(error.message); }
+    if (data.session) { trackLogin('sign_up'); nav('/app'); } else { clearSessionMark(); setDone(true); }
   };
   if (done) return <AuthFrame title="Check your email" sub={`We sent a confirmation link to ${f.email}. Open it on this phone to finish signing up.`} />;
   return (
@@ -75,6 +83,7 @@ export function Signup() {
         <label>Password<input type="password" required minLength={8} value={f.password} onChange={set('password')} autoComplete="new-password" /></label>
         {err && <p className="error">{err}</p>}
         <button className="btn btn-primary btn-block" disabled={busy}>{busy ? <Spinner /> : 'Sign up'}</button>
+        <p className="small muted auth-note">To keep your account safe we log each sign-in: time, IP address, approximate city and device. You can see yours under Me.</p>
       </form>
       <p className="auth-alt">Already have an account? <Link to="/login">Log in</Link></p>
     </AuthFrame>

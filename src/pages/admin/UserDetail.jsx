@@ -13,6 +13,7 @@ import { DailyBars, COLORS } from '../../components/Charts';
 import AiWeeklySummary from '../../components/AiWeeklySummary';
 import ProgressDashboard from '../../components/ProgressDashboard';
 import { CoachJuiceDays } from '../../components/JuiceDays';
+import { LoginHistory, FeatureActivity } from '../../components/ActivityLog';
 import { labKey } from '../../lib/labNames';
 import { WeightPanel } from '../app/Weight';
 import { GymPanel } from '../app/Gym';
@@ -75,6 +76,7 @@ export default function UserDetail() {
     { key: 'diet', label: 'Diet plan' },
     { key: 'access', label: 'Plan & access' },
     { key: 'notes', label: 'Notes' },
+    { key: 'activity', label: 'Activity' },
   ].filter(Boolean);
 
   return (
@@ -136,6 +138,7 @@ export default function UserDetail() {
         </div>
       )}
       {tab === 'notes' && <Card title="All notes"><Comments userId={id} /></Card>}
+      {tab === 'activity' && <><FeatureActivity userId={id} /><LoginHistory userId={id} /></>}
     </div>
   );
 }

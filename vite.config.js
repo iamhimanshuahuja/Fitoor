@@ -34,12 +34,14 @@ function devSqlRunner() {
           send(200, out);
         } catch (e) { send(500, { error: String(e) }); }
       });
-      // DEV-ONLY: /__dev/deploy-ai → redeploys supabase/functions/ai with the Supabase CLI (loopback only)
+      // DEV-ONLY: /__dev/deploy-ai[?name=track] → redeploys supabase/functions/<name> (default ai) with the Supabase CLI (loopback only)
       server.middlewares.use('/__dev/deploy-ai', (req, res) => {
         const ip = req.socket.remoteAddress || '';
         if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(ip)) { res.statusCode = 403; return res.end('localhost only'); }
         const bin = ['/opt/homebrew/bin/supabase', '/usr/local/bin/supabase'].find((p) => fs.existsSync(p)) || 'supabase';
-        execFile(bin, ['functions', 'deploy', 'ai', '--project-ref', env.SUPABASE_PROJECT_REF, '--use-api', '--yes'],
+        const fn = new URL(req.url, 'http://x').searchParams.get('name') || 'ai';
+        if (!/^[a-z0-9_-]+$/.test(fn) || !fs.existsSync(path.resolve(process.cwd(), 'supabase/functions', fn))) { res.statusCode = 400; return res.end('unknown function'); }
+        execFile(bin, ['functions', 'deploy', fn, '--project-ref', env.SUPABASE_PROJECT_REF, '--use-api', '--yes'],
           { cwd: process.cwd(), env: { ...process.env, SUPABASE_ACCESS_TOKEN: env.SUPABASE_ACCESS_TOKEN }, timeout: 180000 },
           (err, stdout, stderr) => {
             res.setHeader('Content-Type', 'text/plain');

@@ -1,3 +1,4 @@
+import { LoginHistory } from '../../components/ActivityLog';
 import { useEffect, useState } from 'react';
 import { Smartphone, Share } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -66,6 +67,8 @@ export default function Profile() {
         </div>
         <p className="small muted">Your coach controls which features are switched on.</p>
       </Card>
+      <LoginHistory userId={profile.id} limit={5} title="Recent sign-ins on your account" compact />
+      <p className="small muted">Don’t recognise a sign-in? Change your password from the login page (Forgot password) and tell your coach.</p>
     </div>
   );
 }

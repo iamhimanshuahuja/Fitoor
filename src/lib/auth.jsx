@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase, isConfigured } from './supabase';
+import { trackLogin, trackResume, clearSessionMark } from './track';
 
 const AuthCtx = createContext(null);
 
@@ -27,6 +28,7 @@ export function AuthProvider({ children }) {
       setSession(data.session);
       await loadProfile(data.session);
       setLoading(false);
+      if (data.session) trackResume();
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
@@ -48,7 +50,7 @@ export function AuthProvider({ children }) {
     isAdmin: profile?.role === 'admin',
     has: (f) => profile?.role === 'admin' || features.includes(f),
     refresh: () => loadProfile(session),
-    signOut: () => supabase.auth.signOut(),
+    signOut: async () => { await trackLogin('sign_out'); clearSessionMark(); return supabase.auth.signOut(); },
   };
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 }

@@ -203,18 +203,38 @@ Deno.serve(async (req) => {
   if (task === 'summary' && prof?.role !== 'admin') return json({ error: 'Coach only' }, 403);
   if (task === 'chat' && !data && !String(body.text || '').trim()) return json({ error: 'Type something or add a photo' }, 400);
 
+  // Usage log (activity_logs is read-only for clients; written here with the service role)
+  const t0 = Date.now();
+  const logUse = async (ok: boolean, extra: Record<string, unknown> = {}) => {
+    try {
+      const svc = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (!svc) return;
+      await createClient(Deno.env.get('SUPABASE_URL')!, svc, { auth: { persistSession: false } }).from('activity_logs').insert({
+        user_id: u.user.id, actor_id: u.user.id, action: `ai_${task}`,
+        detail: { ok, ms: Date.now() - t0, photo: !!data || undefined, ...extra },
+      });
+    } catch { /* logging must never break the AI call */ }
+  };
+
   try {
     const text = await callAI(PROMPTS[task]({ ...body, image: !!data }), data ? { data, mime: body.mime || 'image/webp' } : null);
     if (task === 'lab') {
       const result = parseLab(text);
-      if (!result.results.length) return json({ error: 'Could not read any test results from this file' }, 422);
+      if (!result.results.length) { await logUse(false, { reason: 'no results' }); return json({ error: 'Could not read any test results from this file' }, 422); }
+      await logUse(true, { tests: result.results.length });
       return json({ result });
     }
     const result = parseJSON(text);
-    if (task === 'chat') return json({ result: { reply: String(result?.reply || ''), actions: Array.isArray(result?.actions) ? result.actions.slice(0, 12) : [] } });
+    if (task === 'chat') {
+      const actions = Array.isArray(result?.actions) ? result.actions.slice(0, 12) : [];
+      await logUse(true, { actions: actions.map((a: any) => a?.type).filter(Boolean) });
+      return json({ result: { reply: String(result?.reply || ''), actions } });
+    }
+    await logUse(true);
     return json({ result });
   } catch (e) {
     console.error(task, e);
+    await logUse(false, { error: String((e as Error).message).slice(0, 120) });
     return json({ error: `AI failed: ${(e as Error).message}` }, 502);
   }
 });

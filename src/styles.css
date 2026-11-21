@@ -1043,3 +1043,23 @@ body.chat-open { overflow: hidden; }
   .chat-fab { width: 54px; height: 54px; padding: 0; justify-content: center; bottom: calc(100px + var(--safe-b)); right: 14px; }
   .chat-fab span { display: none; }
 }
+.check.remember { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: .92rem; cursor: pointer; }
+.check.remember input { width: 20px; height: 20px; accent-color: var(--deep); }
+.auth-note { margin: 4px 0 0; line-height: 1.4; }
+
+/* ===================== Activity & sign-in logs ===================== */
+.log-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.log-table th { text-align: left; font-size: .72rem; text-transform: none; opacity: .7; padding: 6px 8px; border-bottom: 1.5px solid var(--ink); white-space: nowrap; }
+.log-table td { padding: 8px; border-bottom: 1px solid var(--line, #d7e2d0); vertical-align: top; }
+.log-table .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem; }
+.nowrap { white-space: nowrap; }
+.block { display: block; }
+.usage-bars { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.usage-bars li { display: grid; grid-template-columns: 150px 1fr 40px; align-items: center; gap: 10px; font-size: .9rem; }
+.usage-bars i { display: block; height: 14px; border-radius: 99px; background: var(--lime); border: 1.5px solid var(--ink); }
+.usage-bars b { text-align: right; font-family: var(--display); }
+.timeline { list-style: none; padding: 0; margin: 0; display: grid; }
+.timeline li { display: grid; grid-template-columns: 28px 1fr auto; gap: 8px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line, #d7e2d0); font-size: .9rem; }
+.timeline li b { font-weight: 600; }
+.tl-icon { font-size: 1.05rem; }
+@media (max-width: 600px) { .usage-bars li { grid-template-columns: 110px 1fr 32px; } .timeline li { grid-template-columns: 24px 1fr; } .timeline time { grid-column: 2; } }
