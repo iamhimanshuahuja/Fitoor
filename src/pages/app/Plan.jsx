@@ -9,6 +9,7 @@ import { JuiceProgram } from '../../components/Juices';
 import { MyJuiceDays } from '../../components/JuiceDays';
 import { useJuiceDays } from '../../lib/juiceDays';
 import Learn from '../../components/Learn';
+import MyRecipes from '../../components/MyRecipes';
 
 export function PlanView({ plan }) {
   if (!plan) return <Card><Empty>Your coach hasn't assigned a diet plan yet.</Empty></Card>;
@@ -53,12 +54,13 @@ export default function Plan() {
       <div className="page-head">
         <h1>My plan</h1>
         <div className="row gap wrap">
-          <Tabs tabs={[{ key: 'plan', label: 'Diet chart' }, ...(showJuices ? [{ key: 'juices', label: 'Juices' }] : []), { key: 'learn', label: 'Learn' }]} value={tab} onChange={setTab} />
+          <Tabs tabs={[{ key: 'plan', label: 'Diet chart' }, ...(showJuices ? [{ key: 'juices', label: 'Juices' }] : []), { key: 'recipes', label: 'Recipes' }, { key: 'learn', label: 'Learn' }]} value={tab} onChange={setTab} />
           {plan && <Link className="btn btn-pop btn-sm" to="/print/plan"><Printer size={16} /> Print / PDF</Link>}
         </div>
       </div>
       {tab === 'plan' && (plan === undefined ? <div className="center-pad"><Spinner /></div> : <PlanView plan={plan} />)}
       {tab === 'juices' && showJuices && (<><MyJuiceDays userId={user.id} /><JuiceProgram group={profile?.juice_group} /></>)}
+      {tab === 'recipes' && <MyRecipes userId={user.id} />}
       {tab === 'learn' && <Learn />}
     </div>
   );

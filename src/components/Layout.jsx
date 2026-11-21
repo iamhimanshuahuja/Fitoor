@@ -1,6 +1,6 @@
 import ChatLog from './ChatLog';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { CalendarDays, CalendarRange, TrendingUp, Scale, Dumbbell, FlaskConical, ClipboardList, User, LayoutDashboard, Users, Layers, LogOut, Shield } from 'lucide-react';
+import { CalendarDays, CalendarRange, TrendingUp, Scale, Dumbbell, FlaskConical, ClipboardList, User, LayoutDashboard, Users, Layers, LogOut, Shield, ChefHat } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { Logo } from './ui';
 
@@ -15,6 +15,7 @@ export function AppLayout() {
     { to: '/app/gym', label: 'Gym', icon: Dumbbell, show: has('gym') },
     { to: '/app/labs', label: 'Labs', icon: FlaskConical, show: has('labs') },
     { to: '/app/plan', label: 'Plan', icon: ClipboardList, show: has('diet') },
+    { to: '/recipes', label: 'Recipes', icon: ChefHat, show: true, desktopOnly: true },
     { to: '/app/profile', label: 'Me', icon: User, show: true },
   ].filter((i) => i.show);
   return (
@@ -31,6 +32,7 @@ export function AdminLayout() {
     { to: '/admin', label: 'Overview', icon: LayoutDashboard, end: true },
     { to: '/admin/users', label: 'Clients', icon: Users },
     ...(isSuper ? [{ to: '/admin/coaches', label: 'Coaches', icon: Shield }] : []),
+    { to: '/admin/recipes', label: 'Recipes', icon: ChefHat },
     { to: '/admin/plans', label: isSuper ? 'Plans & library' : 'Library', icon: Layers },
   ];
   return <Shell items={items} subtitle={isSuper ? 'Super admin' : 'Coach'} super={isSuper} admin name={profile?.full_name} onSignOut={async () => { await signOut(); nav('/'); }} />;

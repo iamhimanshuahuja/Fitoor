@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /admin
+Disallow: /print
+Disallow: /recipes/new
+Disallow: /recipes/edit/
+
+Sitemap: https://fitoor.life/sitemap.xml

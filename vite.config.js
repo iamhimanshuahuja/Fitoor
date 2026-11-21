@@ -91,7 +91,7 @@ export default defineConfig({
           { src: '/icons/app-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: { navigateFallbackDenylist: [/^\/\.netlify/, /^\/__dev/] },
+      workbox: { navigateFallbackDenylist: [/^\/\.netlify/, /^\/__dev/, /^\/sitemap\.xml/, /^\/robots\.txt/] },
     }),
   ],
   server: { port: 5173, host: true },

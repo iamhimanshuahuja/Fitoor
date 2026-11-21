@@ -20,6 +20,10 @@ const UsersPage = lazy(() => import('./pages/admin/Users'));
 const UserDetail = lazy(() => import('./pages/admin/UserDetail'));
 const Plans = lazy(() => import('./pages/admin/Plans'));
 const Coaches = lazy(() => import('./pages/admin/Coaches'));
+const AdminRecipes = lazy(() => import('./pages/admin/Recipes'));
+const RecipeList = lazy(() => import('./pages/recipes/RecipeList'));
+const RecipeDetail = lazy(() => import('./pages/recipes/RecipeDetail'));
+const RecipeEditor = lazy(() => import('./pages/recipes/RecipeEditor'));
 
 function RequireAuth({ children, admin, feature, clientOnly, superOnly }) {
   const { user, loading, isAdmin, isSuper, has, profile, profileError, refresh } = useAuth();
@@ -61,6 +65,10 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/reset" element={<ResetPassword />} />
+      <Route path="/recipes" element={<RecipeList />} />
+      <Route path="/recipes/new" element={<RequireAuth><RecipeEditor /></RequireAuth>} />
+      <Route path="/recipes/edit/:id" element={<RequireAuth><RecipeEditor /></RequireAuth>} />
+      <Route path="/recipes/:slug" element={<RecipeDetail />} />
       <Route path="/print/plan" element={<RequireAuth><PrintPlan /></RequireAuth>} />
       <Route path="/print/plan/:id" element={<RequireAuth admin><PrintPlan /></RequireAuth>} />
       <Route path="/app" element={<RequireAuth clientOnly><AppLayout /></RequireAuth>}>
@@ -79,6 +87,7 @@ export default function App() {
         <Route path="users/:id" element={<UserDetail />} />
         <Route path="plans" element={<Plans />} />
         <Route path="coaches" element={<RequireAuth superOnly><Coaches /></RequireAuth>} />
+        <Route path="recipes" element={<AdminRecipes />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

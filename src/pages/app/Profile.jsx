@@ -40,7 +40,7 @@ export default function Profile() {
     e.preventDefault(); setBusy(true);
     const { error } = await supabase.from('profiles').update({
       full_name: f.full_name, phone: f.phone || null, gender: f.gender || null, dob: f.dob || null,
-      height_cm: f.height_cm || null, start_weight: f.start_weight || null, target_weight: f.target_weight || null, goal: f.goal || null,
+      height_cm: f.height_cm || null, start_weight: f.start_weight || null, target_weight: f.target_weight || null, goal: f.goal || null, diet_pref: f.diet_pref || null,
     }).eq('id', f.id);
     setBusy(false);
     if (error) show(error.message, 'bad'); else cheer('profile');
@@ -77,6 +77,7 @@ export default function Profile() {
             <label className="grow">Starting weight (kg)<input type="number" step="0.1" inputMode="decimal" value={f.start_weight || ''} onChange={set('start_weight')} /></label>
             <label className="grow">Target weight (kg)<input type="number" step="0.1" inputMode="decimal" value={f.target_weight || ''} onChange={set('target_weight')} /></label>
           </div>
+          <label>I eat<select value={f.diet_pref || ''} onChange={set('diet_pref')}><option value="">Not set</option><option value="veg">Veg</option><option value="egg">Eggetarian (veg + egg)</option><option value="nonveg">Non-veg</option></select></label>
           <label>My goal<textarea rows={2} value={f.goal || ''} onChange={set('goal')} placeholder="e.g. Lose 8 kg, improve cholesterol, build strength" /></label>
           <button className="btn btn-primary" disabled={busy}>{busy ? <Spinner /> : 'Save'}</button>
         </form>

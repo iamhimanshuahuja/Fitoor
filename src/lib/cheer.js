@@ -15,6 +15,9 @@ export const CHEERS = {
   profile: ['✅', 'Profile updated', ['You’re all set.', 'Fresh goals, fresh energy.']],
   habits_all: ['✅', 'All habits done!', ['Perfect day energy.', 'Habits stacked. That’s discipline.']],
   water: ['💧', 'Water goal hit', ['Hydrated and glowing.', 'Your body says thank you.']],
+  recipe: ['🍽️', 'Recipe saved', ['Your recipe book just got tastier.', 'Cook it, snap it, share it.']],
+  recipe_review: ['🍽️', 'Sent for review', ['A coach will check it soon. Thanks for sharing!', 'Nice one! It goes live once a coach approves it.']],
+  recipe_public: ['🌍', 'Recipe is live', ['Published on fitoor.life. Someone’s dinner just got sorted.', 'Live on the website. Share the link!']],
   update: ['✅', 'Updated', ['All set. Keep going.', 'Nice. Every detail helps your coach help you.']],
 };
 const pick = (a) => a[Math.floor(Math.random() * a.length)];

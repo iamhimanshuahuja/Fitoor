@@ -144,6 +144,7 @@ export default function Home() {
       <header className="h-nav">
         <Logo height={38} />
         <nav>
+          <Link to="/recipes" className="h-navlink">Recipes</Link>
           <a href="#how" className="h-navlink">How it works</a>
           <a href="#faq" className="h-navlink">FAQ</a>
           {dest ? (
@@ -258,6 +259,7 @@ export default function Home() {
 
       <footer className="h-footer">
         <Logo full height={56} />
+        <nav className="h-footlinks"><Link to="/recipes">Healthy Indian recipes</Link><Link to="/recipes?tag=weight_loss">Weight-loss recipes</Link><Link to="/recipes?tag=high_protein">High-protein recipes</Link><Link to="/recipes?diet=veg">Veg recipes</Link></nav>
         <p>Not medical advice. Talk to your doctor about lab results.</p>
       </footer>
     </div>
