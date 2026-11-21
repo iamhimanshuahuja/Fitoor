@@ -1392,3 +1392,6 @@ select { text-overflow: ellipsis; }
   .pp-page { overflow-x: auto; }
   .pp-track { min-width: 560px; }
 }
+/* radios must not inherit the full-width text-input look (recipe editor "Who can see it") */
+input[type=radio] { width: 20px !important; height: 20px; min-height: 0; padding: 0; margin: 2px 0 0; flex: none; border-radius: 50%; accent-color: var(--deep); }
+.re-vis { align-items: flex-start; }
