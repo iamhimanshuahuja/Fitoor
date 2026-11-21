@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Linking, View } from 'react-native';
+import { Alert, Linking, View } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../../lib/supabase';
 import { today } from '../../../shared/dates';
 import { JUICE_GROUPS } from '../../../shared/juices';
 import { isFemale, cycleStats, PCOS, PREGNANCY } from '../../../shared/cycle';
-import { Btn, Card, Chip, Chips, Row, Screen, Seg, Spinner, T } from '../../../components/ui';
+import { Btn, Card, Chip, Chips, Row, Screen, Seg, Spinner, T, Toggle } from '../../../components/ui';
+import { cheer } from '../../../shared/cheer';
 import DayView from '../../../components/DayView';
 import DateStrip from '../../../components/DateStrip';
 import ProgressPanel from '../../../components/ProgressPanel';
@@ -59,6 +60,8 @@ export default function ClientDetail() {
           <Card title="🧃 Juice amounts (eGFR group)">
             <Seg items={[{ key: null, label: 'Not set' }, ...Object.entries(JUICE_GROUPS).map(([k, g]) => ({ key: k, label: k === '90' ? '>90' : k === '60' ? '60–90' : '30–60' }))]} value={p.juice_group || null} onChange={setJuice} />
             <T small muted>{JUICE_GROUPS[p.juice_group]?.total || 'Pick the group from the latest eGFR.'} Book juice days and edit the diet chart in the web panel.</T>
+            <Toggle label="Allow logging food on juice days" hint={p.juice_allow_food ? 'Client can log what they ate (tagged 🧃, off plan)' : 'Juices only: client can’t log food'} value={!!p.juice_allow_food}
+              onChange={async (v) => { const { error } = await supabase.from('profiles').update({ juice_allow_food: v }).eq('id', id); if (error) Alert.alert('Not saved', error.message); else { cheer('saved'); load(); } }} />
           </Card>
           {isFemale(p) && (p.pcos || p.pregnancy || p.track_cycle) && <WhCard p={p} />}
           <DietPlan userId={id} />

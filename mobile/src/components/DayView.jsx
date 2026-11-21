@@ -31,11 +31,11 @@ export default function DayView({ userId, date, mode = 'user' }) {
       supabase.from('workouts').select('*, workout_sets(*, exercises(name, kind))').eq('user_id', userId).eq('log_date', date),
       supabase.from('diet_plans').select('*').eq('user_id', userId).eq('is_active', true).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('meal_logs').select('eaten_at').eq('user_id', userId).eq('log_date', addDays(date, -1)).in('slot', ['dinner', 'evening', 'lunch', 'other']).order('eaten_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('profiles').select('juice_group').eq('id', userId).maybeSingle(),
+      supabase.from('profiles').select('juice_group, juice_allow_food').eq('id', userId).maybeSingle(),
       supabase.from('juice_days').select('*').eq('user_id', userId).eq('day', date).neq('status', 'missed').maybeSingle(),
     ]);
     setD({ meals: m.data || [], weight: w.data, habits: h.data || { habits: {}, supplements: {} }, workouts: wo.data || [], plan: p.data,
-      lastMealBefore: y.data?.eaten_at || null, juiceGroup: prof.data?.juice_group || null, juiceDay: jd.data || null });
+      lastMealBefore: y.data?.eaten_at || null, juiceGroup: prof.data?.juice_group || null, juiceFood: !!prof.data?.juice_allow_food, juiceDay: jd.data || null });
   }, [userId, date]);
   useEffect(() => { setD(null); load(); }, [load]);
   useEffect(() => on('data-changed', load), [load]);
@@ -88,7 +88,7 @@ export default function DayView({ userId, date, mode = 'user' }) {
           }} />
       )}
 
-      {has('meals') && juiceDay && <JuiceDayMeals meals={meals} userId={userId} date={date} isCoach={isCoach} onChange={changed} />}
+      {has('meals') && juiceDay && <JuiceDayMeals allowFood={d.juiceFood} meals={meals} userId={userId} date={date} isCoach={isCoach} onChange={changed} />}
 
       {has('meals') && !juiceDay && (
         <Card title="Meals" action={<Btn small variant={cheatDay ? 'pop' : 'ghost'} title={cheatDay ? '🍕 Cheat day on' : '🍕 Cheat day?'} onPress={toggleCheatDay} style={cheatDay ? { backgroundColor: C.haldi } : null} />}>
@@ -114,13 +114,15 @@ export default function DayView({ userId, date, mode = 'user' }) {
 }
 
 /** Juice day: juices only is the plan, but food can still be logged honestly (tagged so the coach sees it). */
-function JuiceDayMeals({ meals, userId, date, isCoach, onChange }) {
+function JuiceDayMeals({ allowFood, meals, userId, date, isCoach, onChange }) {
   const [show, setShow] = useState(false);
-  const slots = SLOTS.filter((s) => show || isCoach || meals.some((m) => m.slot === s.key));
+  const slots = SLOTS.filter((s) => (show && allowFood) || isCoach || meals.some((m) => m.slot === s.key));
   return (
     <Card title="Meals">
-      <T style={st.noFood}>🧃 Juice day: the plan is juices only today.{isCoach ? ' Anything logged here is tagged as eaten on a juice day.' : ' If you did eat something (or your coach said it’s OK), log it below. It’s marked so your coach knows.'}</T>
-      {!isCoach && !show ? <Btn small variant="ghost" title="+ I ate something, log it" onPress={() => setShow(true)} style={{ alignSelf: 'flex-start' }} /> : null}
+      <T style={st.noFood}>🧃 Juice day: the plan is juices only today.{isCoach
+        ? ` ${allowFood ? 'This client can log food today' : 'This client can’t log food today'} (change it in the Plan tab). Anything you record is tagged as eaten on a juice day.`
+        : allowFood ? ' If you did eat something, log it below. It’s marked so your coach knows.' : ' Your coach has set juices only, so food can’t be logged today. If you ate something or feel unwell, message your coach.'}</T>
+      {!isCoach && allowFood && !show ? <Btn small variant="ghost" title="+ I ate something, log it" onPress={() => setShow(true)} style={{ alignSelf: 'flex-start' }} /> : null}
       {slots.map((s) => <MealSlot key={s.key} slot={s} meals={meals.filter((m) => m.slot === s.key)} userId={userId} date={date} isCoach={isCoach} onChange={onChange} />)}
     </Card>
   );

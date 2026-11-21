@@ -28,6 +28,7 @@ export default function DayView({ userId, date, mode = 'user', features }) {
   const [plan, setPlan] = useState(null);
   const [lastMealBefore, setLastMealBefore] = useState(null);
   const [juiceGroup, setJuiceGroup] = useState(null);
+  const [juiceFood, setJuiceFood] = useState(false);
   const [juiceDay, setJuiceDay] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState(null);
@@ -43,11 +44,12 @@ export default function DayView({ userId, date, mode = 'user', features }) {
       // last real meal of the previous day (for the dinner → breakfast fasting gap)
       supabase.from('meal_logs').select('eaten_at').eq('user_id', userId).eq('log_date', addDays(date, -1))
         .in('slot', ['dinner', 'evening', 'lunch', 'other']).order('eaten_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('profiles').select('juice_group').eq('id', userId).maybeSingle(),
+      supabase.from('profiles').select('juice_group, juice_allow_food').eq('id', userId).maybeSingle(),
       supabase.from('juice_days').select('*').eq('user_id', userId).eq('day', date).neq('status', 'missed').maybeSingle(),
     ]);
     setJuiceDay(jd.data || null);
     setJuiceGroup(prof.data?.juice_group || null);
+    setJuiceFood(!!prof.data?.juice_allow_food);
     setLastMealBefore(y.data?.eaten_at || null);
     setMeals(m.data || []);
     setWeight(w.data);
@@ -113,7 +115,7 @@ export default function DayView({ userId, date, mode = 'user', features }) {
           }} />
       )}
 
-      {has('meals') && juiceDay && <JuiceDayMeals meals={meals} userId={userId} date={date} editable={editable} isCoach={isCoach} has={has} onChange={changed} setLightbox={setLightbox} />}
+      {has('meals') && juiceDay && <JuiceDayMeals allowFood={juiceFood} meals={meals} userId={userId} date={date} editable={editable} isCoach={isCoach} has={has} onChange={changed} setLightbox={setLightbox} />}
 
       {has('meals') && !juiceDay && (
         <Card title="Meals" action={editable && <button type="button" className={`btn btn-sm ${cheatDay ? 'btn-cheat' : 'btn-ghost'}`} aria-pressed={cheatDay} onClick={toggleCheatDay}>🍕 {cheatDay ? 'Cheat day on' : 'Cheat day?'}</button>}>
@@ -545,13 +547,16 @@ export { slotLabel };
 
 /** Juice day: no food is the plan, but if the client eats (e.g. the coach said OK) they can still log it honestly.
  *  The database tags it ai.juice_day and counts it off plan, so the coach sees it. */
-function JuiceDayMeals({ meals, userId, date, editable, isCoach, has, onChange, setLightbox }) {
+function JuiceDayMeals({ allowFood, meals, userId, date, editable, isCoach, has, onChange, setLightbox }) {
   const [show, setShow] = useState(false);
-  const slots = SLOTS.filter((s) => show || isCoach || meals.some((m) => m.slot === s.key));
+  const canLog = isCoach || allowFood;
+  const slots = SLOTS.filter((s) => (show && canLog) || isCoach || meals.some((m) => m.slot === s.key));
   return (
     <Card title="Meals">
-      <p className="jd-nofood">🧃 Juice day: the plan is juices only today.{isCoach ? ' Anything logged here is tagged as eaten on a juice day.' : ' If you did eat something (or your coach said it’s OK), log it below. It’s marked so your coach knows.'}</p>
-      {editable && !isCoach && !show && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShow(true)}>+ I ate something, log it</button>}
+      <p className="jd-nofood">🧃 Juice day: the plan is juices only today.{isCoach
+        ? ` ${allowFood ? 'This client can log food today' : 'This client can’t log food today'} (change it in Plan & access → Juice days). Anything you record is tagged as eaten on a juice day.`
+        : allowFood ? ' If you did eat something, log it below. It’s marked so your coach knows.' : ' Your coach has set juices only, so food can’t be logged today. If you ate something or feel unwell, message your coach.'}</p>
+      {editable && !isCoach && allowFood && !show && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShow(true)}>+ I ate something, log it</button>}
       {slots.length > 0 && (
         <div className="slots">
           {slots.map((s) => (

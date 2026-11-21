@@ -137,11 +137,17 @@ export function CoachJuiceDays({ userId, profile, updateProfile, egfr }) {
 
   return (
     <Card title="🧃 Juice days">
-      <p className="small muted">Juice days are booked by you, usually once or twice a month. The client gets a reminder 2 days before, can ask to move it, and can’t log other food on the day.</p>
+      <p className="small muted">Juice days are booked by you, usually once or twice a month. The client gets a reminder 2 days before and can ask to move it.</p>
       <label>Juice amounts
         <select value={profile.juice_group || ''} onChange={(e) => updateProfile({ juice_group: e.target.value || null })}>
           <option value="">Not set</option>
           {Object.entries(JUICE_GROUPS).map(([k, g]) => <option key={k} value={k}>{g.label} · {g.total}</option>)}
+        </select>
+      </label>
+      <label>Food on juice days
+        <select value={profile.juice_allow_food ? 'allow' : 'block'} onChange={(e) => updateProfile({ juice_allow_food: e.target.value === 'allow' })}>
+          <option value="block">Juices only: client can’t log food</option>
+          <option value="allow">Allow logging food (tagged 🧃, counted off plan)</option>
         </select>
       </label>
       <p className="small muted">
