@@ -91,15 +91,15 @@ export function Toggle({ label, hint, value, onChange, disabled }) {
   );
 }
 
-/** Segmented control: items = [[value, label], …] */
+/** Segmented control: items = [{ key, label }, …] (or [value, label] pairs) */
 export function Seg({ items, value, onChange, style }) {
   return (
     <View style={[s.seg, style]} accessibilityRole="tablist">
-      {items.map(([v, l]) => (
+      {(items || []).map((it) => { const [v, l] = Array.isArray(it) ? it : [it.key, it.label]; return (
         <Pressable key={String(v)} onPress={() => onChange(v)} accessibilityRole="tab" accessibilityState={{ selected: value === v }} style={[s.segBtn, value === v && s.segOn]}>
           <Text style={[s.segText, value === v && { color: C.ink }]}>{l}</Text>
         </Pressable>
-      ))}
+      ); })}
     </View>
   );
 }
