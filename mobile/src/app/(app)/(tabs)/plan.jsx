@@ -17,7 +17,7 @@ export default function PlanTab() {
   const items = [{ key: 'diet', label: 'Diet' }, ...(hasJuice ? [{ key: 'juices', label: 'Juices' }] : []), { key: 'recipes', label: 'Recipes' }, { key: 'learn', label: 'Learn' }];
   return (
     <Screen>
-      <Seg items={items} value={tab} onChange={setTab} />
+      <Seg items={items} value={tab} onChange={setTab} full />
       {tab === 'diet' && <DietPlan userId={user.id} />}
       {tab === 'juices' && <Juices group={profile?.juice_group} days={days} />}
       {tab === 'recipes' && <RecipesLinks />}

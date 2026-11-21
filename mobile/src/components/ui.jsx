@@ -5,17 +5,19 @@ import { C, R, pop, font } from '../theme';
 import { useSignedUrl } from '../lib/media';
 
 /** Scrollable page with pull-to-refresh, safe-area padding and keyboard avoidance. */
-export function Screen({ children, onRefresh, pad = true, scroll = true, style, footerSpace = 90 }) {
+export function Screen({ children, onRefresh, pad = true, scroll = true, style, footerSpace = 28 }) {
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
   const refresh = useCallback(async () => { if (!onRefresh) return; setRefreshing(true); try { await onRefresh(); } finally { setRefreshing(false); } }, [onRefresh]);
   const body = scroll ? (
-    <ScrollView contentContainerStyle={[pad && s.pad, { paddingBottom: footerSpace + insets.bottom }, style]} keyboardShouldPersistTaps="handled"
+    <ScrollView style={s.screen} contentContainerStyle={[pad && s.pad, { paddingBottom: footerSpace + insets.bottom }, style]} keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets keyboardDismissMode="interactive"
       refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={C.deep} /> : undefined}>
       {children}
     </ScrollView>
   ) : <View style={[{ flex: 1 }, pad && s.pad, style]}>{children}</View>;
-  return <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>{body}</KeyboardAvoidingView>;
+  // Scrolling screens let iOS move fields above the keyboard (works under headers and in tabs); Android resizes the window itself.
+  return scroll ? body : <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>{body}</KeyboardAvoidingView>;
 }
 
 export const H1 = ({ children, style }) => <Text style={[s.h1, style]} accessibilityRole="header">{children}</Text>;
@@ -76,7 +78,28 @@ export function Field({ label, hint, style, inputStyle, multiline, ...p }) {
     </View>
   );
 }
-export const NumField = (p) => <Field keyboardType="decimal-pad" {...p} />;
+export const NumField = ({ onChangeText, ...p }) => <Field keyboardType="decimal-pad" {...p} onChangeText={onChangeText && ((v) => onChangeText(v.replace(/,/g, '.').replace(/[^0-9.]/g, '')))} />;
+
+/** kcal / protein / carbs / fat as a 2×2 grid (fits any phone width). value = {kcal, protein_g, carbs_g, fat_g} as strings. */
+export function MacroFields({ value, onChange, editable = true }) {
+  const f = (k, label) => <NumField key={k} label={label} value={value[k] == null ? '' : String(value[k])} placeholder="–" editable={editable} onChangeText={(v) => onChange({ ...value, [k]: v })} />;
+  return (
+    <View style={{ gap: 8 }}>
+      <View style={{ flexDirection: 'row', gap: 8 }}>{f('kcal', 'kcal')}{f('protein_g', 'Protein g')}</View>
+      <View style={{ flexDirection: 'row', gap: 8 }}>{f('carbs_g', 'Carbs g')}{f('fat_g', 'Fat g')}</View>
+    </View>
+  );
+}
+
+/** Icon-only round button (edit, delete…). */
+export function IconBtn({ icon, onPress, label, tone }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} hitSlop={6}
+      style={({ pressed }) => [{ width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: tone || C.line, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.6 }]}>
+      <Text style={{ fontSize: 16 }}>{icon}</Text>
+    </Pressable>
+  );
+}
 
 export function Row({ children, style, gap = 8, wrap }) { return <View style={[{ flexDirection: 'row', alignItems: 'center', gap }, wrap && { flexWrap: 'wrap' }, style]}>{children}</View>; }
 export const Empty = ({ children }) => <Text style={s.empty}>{children}</Text>;
@@ -92,11 +115,11 @@ export function Toggle({ label, hint, value, onChange, disabled }) {
 }
 
 /** Segmented control: items = [{ key, label }, …] (or [value, label] pairs) */
-export function Seg({ items, value, onChange, style }) {
+export function Seg({ items, value, onChange, style, full }) {
   return (
-    <View style={[s.seg, style]} accessibilityRole="tablist">
+    <View style={[s.seg, full && s.segFull, style]} accessibilityRole="tablist">
       {(items || []).map((it) => { const [v, l] = Array.isArray(it) ? it : [it.key, it.label]; return (
-        <Pressable key={String(v)} onPress={() => onChange(v)} accessibilityRole="tab" accessibilityState={{ selected: value === v }} style={[s.segBtn, value === v && s.segOn]}>
+        <Pressable key={String(v)} onPress={() => onChange(v)} accessibilityRole="tab" accessibilityState={{ selected: value === v }} style={[s.segBtn, full && { flex: 1 }, value === v && s.segOn]}>
           <Text style={[s.segText, value === v && { color: C.ink }]}>{l}</Text>
         </Pressable>
       ); })}
@@ -128,7 +151,7 @@ export const s = StyleSheet.create({
   pad: { padding: 14, gap: 14 },
   h1: { fontSize: 28, color: C.ink, ...font.display },
   h2: { fontSize: 19, color: C.ink, ...font.display, marginBottom: 6 },
-  t: { fontSize: 15, color: C.ink, lineHeight: 21 },
+  t: { fontSize: 15, color: C.ink, lineHeight: 21, flexShrink: 1 },
   muted: { color: C.muted },
   small: { fontSize: 13, lineHeight: 18 },
   card: { backgroundColor: C.card, borderRadius: R.lg, borderWidth: 2, borderColor: C.ink, padding: 14, gap: 10 },
@@ -141,10 +164,10 @@ export const s = StyleSheet.create({
   pressed: { transform: [{ translateX: 2 }, { translateY: 2 }] },
   disabled: { opacity: 0.5 },
   chip: { borderWidth: 1.5, borderColor: C.line, backgroundColor: C.card, borderRadius: R.pill, paddingHorizontal: 12, minHeight: 36, justifyContent: 'center' },
-  chipSm: { minHeight: 30, paddingHorizontal: 9 },
+  chipSm: { minHeight: 34, paddingHorizontal: 10 },
   chipText: { fontSize: 13.5, color: C.ink, ...font.semi },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  field: { gap: 4, flexGrow: 1, flexShrink: 1, minWidth: 64 },
+  field: { gap: 4, flexGrow: 1, flexShrink: 1, minWidth: 0 },
   label: { fontSize: 13, color: C.ink, ...font.semi },
   hint: { fontSize: 12, color: C.muted },
   input: { borderWidth: 2, borderColor: C.line, borderRadius: 12, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, color: C.ink, minHeight: 46 },
@@ -152,7 +175,8 @@ export const s = StyleSheet.create({
   toggle: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
   toggleLabel: { fontSize: 15, color: C.ink, ...font.semi },
   seg: { flexDirection: 'row', borderWidth: 2, borderColor: C.ink, borderRadius: 12, padding: 3, backgroundColor: '#fff', alignSelf: 'flex-start' },
-  segBtn: { paddingHorizontal: 12, minHeight: 34, justifyContent: 'center', borderRadius: 9 },
+  segFull: { alignSelf: 'stretch' },
+  segBtn: { paddingHorizontal: 12, minHeight: 36, justifyContent: 'center', alignItems: 'center', borderRadius: 9 },
   segOn: { backgroundColor: C.lime },
   segText: { fontSize: 13, color: C.muted, ...font.bold },
   pill: { borderWidth: 1.5, borderColor: C.ink, borderRadius: R.pill, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: '#fff' },

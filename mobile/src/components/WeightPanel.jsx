@@ -9,6 +9,7 @@ import { today, fmtLong } from '../shared/dates';
 import { Btn, Card, Empty, Field, NumField, Row, Seg, Spinner, Stat, T } from './ui';
 import LineChart from './LineChart';
 import { C } from '../theme';
+import DateField from './DateField';
 
 /** Weight history + optional body measurements for one user. */
 export default function WeightPanel({ userId, profile }) {
@@ -76,7 +77,7 @@ export default function WeightPanel({ userId, profile }) {
         {!form && <Btn small title="+ Add measurements" onPress={() => openForm(rows.find((r) => r.log_date === today()))} />}
         {form && (
           <View style={{ gap: 8 }}>
-            <Field label="Date (YYYY-MM-DD)" value={form.log_date} onChangeText={(v) => setForm({ ...form, log_date: v })} autoCapitalize="none" />
+            <DateField label="Date" value={form.log_date} onChange={(v) => setForm({ ...form, log_date: v })} />
             <Row wrap gap={8}>
               {SITES.map((s) => <View key={s.key} style={{ width: '47%' }}><NumField label={`${s.emoji} ${s.label} (${unit})`} hint={s.how} value={form[s.key] || ''} onChangeText={(v) => setForm({ ...form, [s.key]: v })} /></View>)}
             </Row>

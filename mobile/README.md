@@ -25,7 +25,12 @@ Never put the service-role key, AI keys, DB password or `SUPABASE_ACCESS_TOKEN` 
 
 ## 2. Build and share (EAS)
 
-**Easiest:** double-click `mobile/build-app.command` in Finder. It installs, runs expo-doctor, logs you in to Expo, links the project, copies the 3 `EXPO_PUBLIC_*` values to EAS, then asks: Android APK, iOS build, or Expo Go QR.
+**Easiest:** in Terminal run `cd /var/www/fitoor/mobile && ./build-app.command` (not VS Code's Code Runner, it can't take input). It installs, runs expo-doctor, logs you in to Expo, links the project, turns on over-the-air updates, copies the 3 `EXPO_PUBLIC_*` values to EAS, then asks:
+
+1. **Android APK + share link**: anyone with the link installs Fitoor; it runs on its own, your Mac doesn't need to be on.
+2. **iPhone → TestFlight**: needs an Apple Developer account ($99/yr). Add testers or a public TestFlight link in App Store Connect.
+3. **Push a fix to installed apps**: JS/UI changes reach everyone's installed app on next open, no rebuild or store review (native changes like new packages still need option 1/2).
+4. **Expo Go QR**: quick test on your own phone (needs your Mac running).
 
 Or by hand:
 
@@ -80,6 +85,7 @@ The script rewrites imports for React Native (window events → `src/lib/events.
 ```bash
 npm run check               # bundles the Android app with Metro (catches syntax/import errors)
 ```
+The app also builds for the web (`npx expo export --platform web`), which is handy for clicking through every screen in a browser against a mocked Supabase. Text must always sit inside `<Text>`: a bare string or `{count && …}` with count 0 inside a `<View>` crashes iOS/Android (the web silently allows it).
 
 ## 5. What's web-only for now
 Diet plan editor and templates, plan/feature matrix, coaches page, coach assignment, juice-day booking, activity/sign-in history, AI weekly check-in, printable plan, CSV export. The coach app links to the web panel for these.

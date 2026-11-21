@@ -44,7 +44,7 @@ export default function ProgressPanel({ userId, profile }) {
 
   return (
     <View style={{ gap: 14 }}>
-      <Seg items={RANGES} value={range} onChange={setRange} />
+      <Seg items={RANGES} value={range} onChange={setRange} full />
       <Card title="Your journey" tone={C.lime}>
         <T style={{ fontSize: 30, fontWeight: '800' }}>{lost == null ? 'Log a weigh-in to start' : lost >= 0 ? `${lost} kg down` : `${-lost} kg up`}</T>
         <T small>{start ? `Day 1: ${start} kg` : ''}{now ? ` · Now: ${now} kg` : ''}{target ? ` · Goal: ${target} kg` : ''}</T>

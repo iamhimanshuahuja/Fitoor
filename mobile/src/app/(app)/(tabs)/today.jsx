@@ -4,12 +4,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../lib/auth';
-import { emit } from '../../../lib/events';
+import { emit, toast } from '../../../lib/events';
 import { today, addDays, fmt, fmtLong } from '../../../shared/dates';
 import { useJuiceDays, nextJuiceDay, daysUntil, REMIND_DAYS, requestChange, cancelRequest } from '../../../shared/juiceDays';
 import { isFemale, cycleStats } from '../../../shared/cycle';
 import DayView from '../../../components/DayView';
 import DateStrip from '../../../components/DateStrip';
+import DateField from '../../../components/DateField';
 import ChatFab from '../../../components/ChatFab';
 import { Btn, Card, Field, H1, Row, Screen, T } from '../../../components/ui';
 import { C, R, pop } from '../../../theme';
@@ -40,7 +41,7 @@ export default function Today() {
   const refresh = useCallback(async () => emit('data-changed'), []);
   return (
     <View style={{ flex: 1 }}>
-      <Screen onRefresh={refresh}>
+      <Screen onRefresh={refresh} footerSpace={96}>
         <View style={{ gap: 6 }}>
           <H1>{greet}, {profile?.full_name?.split(' ')[0] || 'there'}</H1>
           {streak != null && <Text style={[st.streak, !streak && { backgroundColor: C.lime }]}>{streak ? `🔥 ${streak}-day streak` : '🌱 Start your streak today'}</Text>}
@@ -70,7 +71,7 @@ function JuiceReminder({ userId }) {
   if (!jd) return null;
   const n = daysUntil(jd.day);
   if (n > REMIND_DAYS) return null;
-  const send = async () => { await requestChange(jd.id, req.day, req.reason); setAsking(false); reload(); };
+  const send = async () => { const { error } = await requestChange(jd.id, req.day || addDays(jd.day, 2), req.reason); if (error) return toast(error.message, 'bad'); setAsking(false); reload(); };
   return (
     <Card tone={C.haldi} title={n === 0 ? '🧃 Juice day today' : `🧃 Juice day in ${n} day${n > 1 ? 's' : ''} · ${fmtLong(jd.day)}`}>
       {n > 0 && <T small>Be ready: buy beetroot, carrot, amla, cucumber, ash gourd, greens and coconut water. Eat light the night before.</T>}
@@ -79,9 +80,9 @@ function JuiceReminder({ userId }) {
         <Row wrap><T small>⏳ You asked for {fmtLong(jd.request_day)} · waiting for coach</T><Btn small variant="ghost" title="Withdraw" onPress={async () => { await cancelRequest(jd.id); reload(); }} /></Row>
       ) : n > 0 && (asking ? (
         <View style={{ gap: 8 }}>
-          <Field label="New date (YYYY-MM-DD)" value={req.day} onChangeText={(v) => setReq({ ...req, day: v })} placeholder={addDays(jd.day, 2)} autoCapitalize="none" />
+          <DateField label="New date" value={req.day || addDays(jd.day, 2)} max={null} min={today()} onChange={(v) => setReq({ ...req, day: v })} />
           <Field label="Why?" value={req.reason} onChangeText={(v) => setReq({ ...req, reason: v })} placeholder="e.g. Office lunch that day" />
-          <Row><Btn small title="Send request" onPress={send} disabled={!/^\d{4}-\d{2}-\d{2}$/.test(req.day)} /><Btn small variant="ghost" title="Cancel" onPress={() => setAsking(false)} /></Row>
+          <Row><Btn small title="Send request" onPress={send} /><Btn small variant="ghost" title="Cancel" onPress={() => setAsking(false)} /></Row>
         </View>
       ) : <Btn small variant="ghost" title="Request another day" onPress={() => setAsking(true)} />)}
     </Card>

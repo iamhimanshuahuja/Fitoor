@@ -16,11 +16,12 @@ const DIETS = [['veg', 'Veg'], ['egg', 'Eggetarian'], ['nonveg', 'Non-veg']];
 
 export default function Me() {
   const { user, profile, refresh, signOut, has, features } = useAuth();
-  const [f, setF] = useState(profile || {});
+  const toForm = (p) => ({ ...(p || {}), dob: p?.dob ? p.dob.split('-').reverse().join('/') : '' });
+  const [f, setF] = useState(toForm(profile));
   const [busy, setBusy] = useState(false);
   const [coach, setCoach] = useState(null);
   const [logins, setLogins] = useState([]);
-  useEffect(() => setF(profile || {}), [profile]);
+  useEffect(() => setF(toForm(profile)), [profile]);
   useEffect(() => {
     if (profile?.coach_id) supabase.from('profiles').select('full_name').eq('id', profile.coach_id).maybeSingle().then(({ data }) => setCoach(data));
     supabase.from('login_events').select('created_at, event, city, region, country, device').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5).then(({ data }) => setLogins(data || []));
@@ -29,16 +30,20 @@ export default function Me() {
 
   const save = async () => {
     if (!f.full_name?.trim()) return Alert.alert('Add your name');
-    if (f.dob) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(f.dob)) return Alert.alert('Date of birth', 'Use YYYY-MM-DD, e.g. 1995-04-23');
-      const d = new Date(f.dob + 'T00:00:00'), now = new Date();
+    let dob = null;
+    if (f.dob?.trim()) {
+      const m = f.dob.trim().match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/);
+      if (!m) return Alert.alert('Date of birth', 'Use DD/MM/YYYY, e.g. 23/04/1995');
+      dob = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+      const d = new Date(dob + 'T00:00:00'), now = new Date();
+      if (Number.isNaN(d.getTime()) || d.getDate() !== Number(m[1])) return Alert.alert('Date of birth', 'That date doesn’t exist. Use DD/MM/YYYY.');
       const age = now.getFullYear() - d.getFullYear() - (now < new Date(now.getFullYear(), d.getMonth(), d.getDate()) ? 1 : 0);
       if (age < 18) return Alert.alert('Fitoor is for adults (18+)', 'Please check your date of birth.');
     }
     const n = (v) => (v === '' || v == null ? null : Number(v));
     setBusy(true);
     const { error } = await supabase.from('profiles').update({
-      full_name: f.full_name.trim(), phone: f.phone || null, gender: f.gender || null, dob: f.dob || null,
+      full_name: f.full_name.trim(), phone: f.phone || null, gender: f.gender || null, dob,
       height_cm: n(f.height_cm), start_weight: n(f.start_weight), target_weight: n(f.target_weight), goal: f.goal || null, diet_pref: f.diet_pref || null,
     }).eq('id', user.id);
     setBusy(false);
@@ -54,7 +59,7 @@ export default function Me() {
         <T small bold>Gender</T>
         <Chips>{['Male', 'Female', 'Other'].map((g) => <Chip key={g} small label={g} on={f.gender === g} onPress={() => set('gender')(f.gender === g ? '' : g)} />)}</Chips>
         <Row gap={8}>
-          <Field label="Date of birth" value={f.dob || ''} onChangeText={set('dob')} placeholder="YYYY-MM-DD" autoCapitalize="none" />
+          <Field label="Date of birth" value={f.dob || ''} onChangeText={set('dob')} placeholder="DD/MM/YYYY" keyboardType="numbers-and-punctuation" />
           <NumField label="Height (cm)" value={f.height_cm ? String(f.height_cm) : ''} onChangeText={set('height_cm')} />
         </Row>
         <Row gap={8}>

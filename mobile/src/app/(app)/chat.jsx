@@ -8,7 +8,7 @@ import { cheer } from '../../shared/cheer';
 import { SLOTS, HABITS, SUPPLEMENTS, slotLabel } from '../../shared/constants';
 import { SITES } from '../../shared/measure';
 import { fmt } from '../../shared/dates';
-import { Btn, Chip, Chips, Field, NumField, Row, T } from '../../components/ui';
+import { Btn, Chip, Chips, Field, MacroFields, NumField, Row, T } from '../../components/ui';
 import { C, R } from '../../theme';
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -100,7 +100,7 @@ function ActionCard({ a, onChange, onSave, onSkip }) {
     body = (<>
       <Field label="What" value={a.description || ''} editable={!locked} onChangeText={(v) => onChange({ description: v })} />
       {!locked && <Chips>{SLOTS.map((s) => <Chip key={s.key} small label={s.label} on={a.slot === s.key} onPress={() => onChange({ slot: s.key })} />)}</Chips>}
-      <Row gap={6}>{nf('kcal', 'kcal')}{nf('protein_g', 'P g')}{nf('carbs_g', 'C g')}{nf('fat_g', 'F g')}</Row>
+      <MacroFields value={a} editable={!locked} onChange={(v) => onChange({ kcal: v.kcal, protein_g: v.protein_g, carbs_g: v.carbs_g, fat_g: v.fat_g })} />
       {a.plan_note ? <T small>✨ {a.plan_note}</T> : null}
     </>);
   } else if (a.type === 'weight') { title = 'Weight'; body = <Row gap={6}>{nf('weight_kg', 'kg')}{nf('waist_cm', 'Waist cm')}</Row>; }

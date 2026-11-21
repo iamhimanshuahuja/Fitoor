@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, Share, View } from 'react-native';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase, WEB_URL } from '../../lib/supabase';
@@ -32,7 +32,7 @@ export default function CoachHome() {
       supabase.from('juice_days').select('*, profiles:user_id(full_name)').eq('request_status', 'pending'),
       supabase.from('recipes').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     ]);
-    setClients(c.data || []); setRequests(jr.data || []); setPending(rp.count || 0);
+    setClients(c.data || []); setRequests((jr.data || []).filter((r) => r.request_day)); setPending(rp.count || 0);
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -44,7 +44,12 @@ export default function CoachHome() {
   return (
     <Screen onRefresh={load}>
       <T style={{ fontSize: 22, fontWeight: '800' }}>Hi {profile?.full_name?.split(' ')[0] || 'coach'}</T>
-      {profile?.coach_code ? <T small>Your coach code: <T bold>{profile.coach_code}</T> · invite link {WEB_URL}/signup?coach={profile.coach_code}</T> : null}
+      {profile?.coach_code ? (
+        <Row wrap>
+          <T small style={{ flex: 1 }}>Your coach code: <T small bold>{profile.coach_code}</T></T>
+          <Btn small variant="pop" title="Invite a client" onPress={() => Share.share({ message: `Join me on Fitoor 🍛💪 Sign up with my coach code ${profile.coach_code}: ${WEB_URL}/signup?coach=${profile.coach_code}` })} />
+        </Row>
+      ) : null}
       <Row wrap gap={8}>
         <Stat label="Clients" value={mine.length} tone={C.lime} />
         <Stat label="Need attention" value={needs.length} tone={C.chilli} />

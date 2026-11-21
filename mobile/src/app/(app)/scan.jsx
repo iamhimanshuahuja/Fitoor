@@ -9,7 +9,7 @@ import { cheer } from '../../shared/cheer';
 import { isCheatDay, notifyDataChanged } from '../../shared/chatLog';
 import { SLOTS } from '../../shared/constants';
 import { today } from '../../shared/dates';
-import { Btn, Card, Chip, Chips, NumField, Row, Screen, Seg, Spinner, T, Toggle } from '../../components/ui';
+import { Btn, Card, Chip, Chips, MacroFields, Row, Screen, Seg, Spinner, T, Toggle } from '../../components/ui';
 import { C } from '../../theme';
 
 export function slotForNow(d = new Date()) {
@@ -77,10 +77,8 @@ export default function Scan() {
         <>
           <Card title={`~${nutr.kcal || 0} kcal`} tone={C.lime}>
             <T small>{res.confidence === 'high' ? 'Good guess' : res.confidence === 'low' ? 'Rough guess' : 'Fair guess'}. Portion size:</T>
-            <Seg items={PORTIONS} value={mult} onChange={portion} />
-            <Row gap={6}>
-              {[['kcal', 'kcal'], ['protein_g', 'Protein g'], ['carbs_g', 'Carbs g'], ['fat_g', 'Fat g']].map(([k, l]) => <NumField key={k} label={l} value={nutr[k]} onChangeText={(v) => setNutr({ ...nutr, [k]: v })} />)}
-            </Row>
+            <Seg items={PORTIONS} value={mult} onChange={portion} full />
+            <MacroFields value={nutr} onChange={setNutr} />
           </Card>
           {res.breakdown?.length > 0 && (
             <Card title="What AI sees">

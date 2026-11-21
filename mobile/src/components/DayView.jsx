@@ -10,7 +10,7 @@ import { cheer } from '../shared/cheer';
 import { SLOTS, HABITS, SUPPLEMENTS } from '../shared/constants';
 import { JUICES, TANGY, JUICE_GROUPS } from '../shared/juices';
 import { addDays, fmtTime } from '../shared/dates';
-import { Btn, Card, Chip, Chips, Empty, Field, NumField, Pill, Row, SignedImg, Spinner, T, Tag, Toggle } from './ui';
+import { Btn, Card, Chip, Chips, Empty, Field, IconBtn, MacroFields, NumField, Pill, Row, SignedImg, Spinner, T, Toggle } from './ui';
 import Notes from './Notes';
 import { C, R, font } from '../theme';
 
@@ -177,8 +177,7 @@ function MealSlot({ slot, planSlot, meals, userId, date, isCoach, cheatDay = fal
   const [busy, setBusy] = useState('');
   const [editing, setEditing] = useState(null);
   useEffect(() => setCheat(cheatDay), [cheatDay]);
-  const setN = (k) => (v) => setNutr({ ...nutr, [k]: v });
-
+  
   const reset = async (removePhoto) => {
     if (removePhoto && photo) await supabase.storage.from('media').remove([photo]);
     setPhoto(null); setAi(null); setDesc(''); setNutr({ kcal: '', protein_g: '', carbs_g: '', fat_g: '' });
@@ -243,24 +242,23 @@ function MealSlot({ slot, planSlot, meals, userId, date, isCoach, cheatDay = fal
             {editing?.id === m.id ? (
               <>
                 <Field value={editing.description || ''} onChangeText={(v) => setEditing({ ...editing, description: v })} multiline />
-                <Row gap={6}>
-                  {[['kcal', 'kcal'], ['protein_g', 'P g'], ['carbs_g', 'C g'], ['fat_g', 'F g']].map(([k, l]) => (
-                    <NumField key={k} label={l} value={editing[k] == null ? '' : String(editing[k])} onChangeText={(v) => setEditing({ ...editing, [k]: v })} />
-                  ))}
-                </Row>
+                <MacroFields value={editing} onChange={(v) => setEditing({ ...editing, ...v })} />
                 <Row><Btn small title="Save" onPress={saveEdit} /><Btn small variant="ghost" title="Cancel" onPress={() => setEditing(null)} /></Row>
               </>
-            ) : <T>{m.description || 'Photo only'}</T>}
+            ) : (
+              <Row style={{ alignItems: 'flex-start' }}>
+                <T style={{ flex: 1 }}>{m.description || 'Photo only'}</T>
+                <IconBtn icon="✏️" label="Edit meal" onPress={() => setEditing({ ...m })} />
+                <IconBtn icon="🗑" label="Delete meal" tone={C.pink} onPress={() => del(m)} />
+              </Row>
+            )}
             <T small muted>{fmtTime(m.eaten_at)}{m.kcal ? ` · ~${Math.round(m.kcal)} kcal` : ''}{m.protein_g ? ` · P ${Math.round(m.protein_g)}g` : ''}{m.carbs_g ? ` · C ${Math.round(m.carbs_g)}g` : ''}{m.fat_g ? ` · F ${Math.round(m.fat_g)}g` : ''}{m.ai?.edited_by_user ? ' · edited' : ''}</T>
-            {m.cheat ? <Tag tone={C.haldi}>🍕 Cheat meal</Tag> : null}
             {m.ai?.plan_note ? <T small style={[st.aiNote, m.ai.plan_check === 'on_plan' ? { backgroundColor: '#E4DCFF' } : m.ai.plan_check ? { backgroundColor: C.pink } : null]}>✨ {m.ai.plan_note}</T> : null}
             {m.ai?.breakdown?.length > 0 && <Breakdown ai={m.ai} />}
             <Chips>
               <Chip small label="✓ On plan" on={m.followed === true} tone={C.lime} onPress={() => setFollowed(m, true)} />
               <Chip small label="✕ Off plan" on={m.followed === false} tone={C.haldi} onPress={() => setFollowed(m, false)} />
               <Chip small label="🍕 Cheat" on={!!m.cheat} tone={C.haldi} onPress={() => toggleCheat(m)} />
-              <Chip small label="✏️" onPress={() => setEditing({ ...m })} />
-              <Chip small label="🗑" onPress={() => del(m)} />
             </Chips>
           </View>
         </View>
@@ -280,12 +278,7 @@ function MealSlot({ slot, planSlot, meals, userId, date, isCoach, cheatDay = fal
             </Row>
           )}
           <Field value={desc} onChangeText={setDesc} placeholder="What did you have? e.g. 2 roti, dal, salad" multiline />
-          <Row gap={6}>
-            <NumField label="kcal" value={nutr.kcal} onChangeText={setN('kcal')} placeholder="–" />
-            <NumField label="Protein g" value={nutr.protein_g} onChangeText={setN('protein_g')} placeholder="–" />
-            <NumField label="Carbs g" value={nutr.carbs_g} onChangeText={setN('carbs_g')} placeholder="–" />
-            <NumField label="Fat g" value={nutr.fat_g} onChangeText={setN('fat_g')} placeholder="–" />
-          </Row>
+          <MacroFields value={nutr} onChange={setNutr} />
           <T small muted>{has('ai') && has('meal_photos') ? 'Add a photo and AI fills these in. You can change any number before adding.' : 'Optional. Fill in what you know.'}</T>
           <Toggle label="🍕 Cheat meal" hint="Planned treat, no guilt" value={cheat} onChange={setCheat} />
           <Row wrap>

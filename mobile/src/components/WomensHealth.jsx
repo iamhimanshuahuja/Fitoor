@@ -3,9 +3,10 @@ import { Alert, Pressable, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { cheer } from '../shared/cheer';
 import { PCOS, PREGNANCY, FLOW, SYMPTOMS, cycleStats } from '../shared/cycle';
-import { today, fmt, fmtLong, daysAgo } from '../shared/dates';
+import { today, addDays, fmt, fmtLong, daysAgo } from '../shared/dates';
 import { Btn, Card, Chip, Chips, Field, Row, Spinner, Stat, T, Toggle } from './ui';
 import { C } from '../theme';
+import DateField from './DateField';
 
 /** Optional women's health profile + period tracker (descriptive only, no medical advice). */
 export default function WomensHealth({ profile, onSaved, userId = profile.id }) {
@@ -26,7 +27,7 @@ export default function WomensHealth({ profile, onSaved, userId = profile.id }) 
         <Chips>{Object.entries(PCOS).map(([k, l]) => <Chip key={k} small label={l} on={f.pcos === k} onPress={() => setF({ ...f, pcos: f.pcos === k ? '' : k })} />)}</Chips>
         <T small bold>Pregnancy</T>
         <Chips>{Object.entries(PREGNANCY).map(([k, l]) => <Chip key={k} small label={l} on={f.pregnancy === k} onPress={() => setF({ ...f, pregnancy: f.pregnancy === k ? '' : k })} />)}</Chips>
-        {f.pregnancy === 'pregnant' && <Field label="Due date (YYYY-MM-DD)" value={f.due_date} onChangeText={(v) => setF({ ...f, due_date: v })} autoCapitalize="none" />}
+        {f.pregnancy === 'pregnant' && <DateField label="Due date" value={f.due_date} max={null} min={today()} optional onChange={(v) => setF({ ...f, due_date: v })} />}
         <Toggle label="Track my periods" value={f.track_cycle} onChange={(v) => setF({ ...f, track_cycle: v })} />
         <Btn small title="Save" onPress={save} />
       </Card>
@@ -65,14 +66,14 @@ function PeriodTracker({ userId }) {
       )}
       <Row wrap>
         {open ? <Btn small title="Period ended today" onPress={endToday} /> : <Btn small title="Period started today" onPress={() => setForm({ start_date: today(), symptoms: [] })} />}
-        <Btn small variant="ghost" title="+ Add past period" onPress={() => setForm({ start_date: '', symptoms: [] })} />
+        <Btn small variant="ghost" title="+ Add past period" onPress={() => setForm({ start_date: addDays(today(), -28), symptoms: [] })} />
       </Row>
       {form && (
         <View style={{ gap: 8 }}>
-          <Row gap={8}>
-            <Field label="Start (YYYY-MM-DD)" value={form.start_date} onChangeText={(v) => setForm({ ...form, start_date: v })} autoCapitalize="none" />
-            <Field label="End" value={form.end_date || ''} onChangeText={(v) => setForm({ ...form, end_date: v })} placeholder="optional" autoCapitalize="none" />
-          </Row>
+          <View style={{ gap: 8 }}>
+            <DateField label="Started" value={form.start_date} onChange={(v) => setForm({ ...form, start_date: v })} />
+            <DateField label="Ended" value={form.end_date || ''} optional min={form.start_date} onChange={(v) => setForm({ ...form, end_date: v })} />
+          </View>
           <Chips>{Object.entries(FLOW).map(([k, l]) => <Chip key={k} small label={l} on={form.flow === k} onPress={() => setForm({ ...form, flow: k })} />)}</Chips>
           <Chips>{SYMPTOMS.map((x) => { const on = form.symptoms?.includes(x); return <Chip key={x} small label={x} on={on} tone="#FFC9D1" onPress={() => setForm({ ...form, symptoms: on ? form.symptoms.filter((y) => y !== x) : [...(form.symptoms || []), x] })} />; })}</Chips>
           <Field label="Notes" value={form.notes || ''} onChangeText={(v) => setForm({ ...form, notes: v })} />

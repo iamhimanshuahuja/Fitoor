@@ -23,7 +23,8 @@
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "single"
     },
     "plugins": [
       "expo-router",
@@ -53,9 +54,8 @@
       "router": {},
       "eas": {}
     },
-    "platforms": [
-      "ios",
-      "android"
-    ]
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
   }
 }

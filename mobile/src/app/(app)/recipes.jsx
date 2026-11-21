@@ -29,7 +29,7 @@ export default function Recipes() {
   }, [mine, diet, tag, meal, q, user.id]);
   return (
     <Screen>
-      <Seg items={[{ key: false, label: 'All recipes' }, { key: true, label: 'My recipes' }]} value={mine} onChange={setMine} />
+      <Seg items={[{ key: false, label: 'All recipes' }, { key: true, label: 'My recipes' }]} value={mine} onChange={setMine} full />
       <Row><Field value={q} onChangeText={setQ} placeholder="Search e.g. chilla, dal" /><Btn small variant="pop" title="+ Add" onPress={() => router.push('/recipe-new')} /></Row>
       {!mine && <Chips>{Object.entries(DIETS).map(([k, d]) => <Chip key={k} small label={`${d.emoji} ${d.short}`} on={diet === k} onPress={() => setDiet(diet === k ? '' : k)} />)}</Chips>}
       <Chips>{Object.entries(MEALS).map(([k, l]) => <Chip key={k} small label={l} on={meal === k} onPress={() => setMeal(meal === k ? '' : k)} />)}</Chips>

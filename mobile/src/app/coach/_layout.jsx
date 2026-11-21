@@ -1,13 +1,15 @@
 import { Redirect, Stack } from 'expo-router';
 import { useAuth } from '../../lib/auth';
 import TermsGate from '../../components/TermsGate';
+import Booting from '../../components/Booting';
 import { C } from '../../theme';
 
 /** Coach / super admin area. */
 export default function CoachLayout() {
-  const { session, loading, isAdmin } = useAuth();
+  const { session, loading, isAdmin, profile } = useAuth();
   if (!loading && !session) return <Redirect href="/login" />;
-  if (!loading && !isAdmin) return <Redirect href="/today" />;
+  if (loading || !profile) return <Booting />;
+  if (!isAdmin) return <Redirect href="/today" />;
   return (
     <>
       <Stack screenOptions={{ headerStyle: { backgroundColor: C.ink }, headerTintColor: C.lime, headerTitleStyle: { fontWeight: '800' }, contentStyle: { backgroundColor: C.paper }, headerBackButtonDisplayMode: 'minimal' }}>

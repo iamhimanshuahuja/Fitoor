@@ -17,7 +17,7 @@ export default function TabsLayout() {
     <Tabs screenOptions={{
       headerStyle: { backgroundColor: C.paper }, headerShadowVisible: false, headerTitleStyle: { fontWeight: '800', fontSize: 20, color: C.ink }, headerRight: MeBtn,
       tabBarActiveTintColor: C.ink, tabBarInactiveTintColor: '#6F8075', tabBarActiveBackgroundColor: C.lime,
-      tabBarStyle: { backgroundColor: '#fff', borderTopWidth: 2, borderTopColor: C.ink, height: 64 }, tabBarItemStyle: { borderRadius: 12, margin: 4 },
+      tabBarStyle: { backgroundColor: '#fff', borderTopWidth: 2, borderTopColor: C.ink }, tabBarItemStyle: { borderRadius: 12, marginHorizontal: 3, marginTop: 4 },
       tabBarLabelStyle: { fontWeight: '700', fontSize: 11 }, sceneStyle: { backgroundColor: C.paper },
     }}>
       <Tabs.Screen name="today" options={{ title: 'Today', headerTitle: 'fitoor', tabBarIcon: icon('today-outline') }} />

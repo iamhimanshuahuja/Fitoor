@@ -1,12 +1,14 @@
 import { Redirect, Stack } from 'expo-router';
 import { useAuth } from '../../lib/auth';
 import TermsGate from '../../components/TermsGate';
+import Booting from '../../components/Booting';
 import { C } from '../../theme';
 
 /** Client area. Coaches/super admins are sent to /coach. */
 export default function AppLayout() {
   const { session, loading, isAdmin, profile } = useAuth();
   if (!loading && !session) return <Redirect href="/login" />;
+  if (loading || !profile) return <Booting />;
   if (isAdmin) return <Redirect href="/coach" />;
   if (profile && profile.active === false) return <Redirect href="/paused" />;
   return (

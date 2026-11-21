@@ -10,6 +10,7 @@ import { today, fmt, fmtLong } from '../shared/dates';
 import { Btn, Card, Empty, Field, Row, Spinner, T, Toggle } from './ui';
 import LineChart from './LineChart';
 import { C } from '../theme';
+import DateField from './DateField';
 
 export const flagOf = (v, lo, hi) => {
   if (v == null || Number.isNaN(v)) return null;
@@ -90,7 +91,8 @@ function Uploader({ userId, known, canAI, onSaved }) {
       {busy ? <><Spinner /><T small muted>{busy}</T></> : null}
       {rows.length > 0 && (
         <>
-          <Row gap={8}><Field label="Report date" value={date} onChangeText={setDate} autoCapitalize="none" style={{ flex: 1 }} /><Field label="Lab" value={lab} onChangeText={setLab} style={{ flex: 1 }} /></Row>
+          <DateField label="Report date" value={date} onChange={setDate} />
+          <Field label="Lab" value={lab} onChangeText={setLab} placeholder="e.g. Thyrocare" />
           <T small bold>{rows.length} tests found. Check them:</T>
           {rows.map((r, i) => (
             <View key={i} style={{ borderTopWidth: 1, borderTopColor: C.line, paddingTop: 6, gap: 4 }}>

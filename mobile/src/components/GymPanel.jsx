@@ -11,6 +11,7 @@ import { today, addDays, fmtLong } from '../shared/dates';
 import { notifyDataChanged } from '../shared/chatLog';
 import { Btn, Card, Chip, Chips, Empty, Field, NumField, Row, Spinner, Stat, T } from './ui';
 import { C } from '../theme';
+import DateField from './DateField';
 
 export function useExercises() {
   const [list, setList] = useState([]);
@@ -88,7 +89,7 @@ export default function GymPanel({ userId }) {
         <Stat label="Last 90 days" value={(hist || []).length} tone={C.sky} />
       </Row>
       <Card title="Log a workout">
-        <Field label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} autoCapitalize="none" />
+        <DateField label="Date" value={date} onChange={setDate} />
         <Chips>{DAY_LABELS.map((d) => <Chip key={d} small label={d} on={label === d} onPress={() => setLabel(label === d ? '' : d)} />)}</Chips>
         <Row gap={8}><NumField label="Minutes" value={dur} onChangeText={setDur} placeholder="e.g. 60" /></Row>
         {rows.map((r, ri) => (

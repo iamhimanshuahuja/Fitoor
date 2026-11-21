@@ -12,12 +12,20 @@ import { supabase } from './supabase';
  * Returns { uri, base64, mime, width, height } or null if cancelled.
  */
 export async function pickImage(source = 'library', { max = 1280 } = {}) {
-  const perm = source === 'camera' ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!perm.granted) { Alert.alert('Permission needed', source === 'camera' ? 'Allow camera access in Settings to take photos.' : 'Allow photo access in Settings to pick a photo.'); return null; }
-  const opts = { mediaTypes: ['images'], quality: 1 };
-  const res = source === 'camera' ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
-  if (res.canceled || !res.assets?.length) return null;
-  return compress(res.assets[0], max);
+  try {
+    // The gallery picker needs no permission on iOS 14+ / Android 13+; only the camera does.
+    if (source === 'camera') {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) { Alert.alert('Camera access needed', 'Allow camera access for Fitoor in Settings, or pick a photo from your gallery.'); return null; }
+    }
+    const opts = { mediaTypes: ['images'], quality: 1 };
+    const res = source === 'camera' ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+    if (res.canceled || !res.assets?.length) return null;
+    return await compress(res.assets[0], max);
+  } catch (e) {
+    Alert.alert(source === 'camera' ? 'Camera not available' : 'Couldn’t open photos', e?.message || 'Please try again.');
+    return null;
+  }
 }
 
 export async function compress(asset, max = 1280) {
