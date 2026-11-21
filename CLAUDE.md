@@ -7,7 +7,7 @@
 **Fitoor** (फ़ितूर — Hindi for a craze / obsession; tagline **"Plate se PR tak."**) is a mobile-first PWA for diet, fitness and health tracking between a **client (user)** and a **coach (admin)**, aimed at Gen Z in India. Renamed from *AaharVihar* on 2026-11-21 (Supabase project, tables and storage paths unchanged).
 - Owner: Himanshu. Coach/admin login: admin@himanshuahuja.in; his own client account: iamhimanshuahuja@gmail.com. Local path: `/var/www/fitoor` (macOS real path `/private/var/www/fitoor`). Git repo: `fitoor`.
 - Hosting: **Netlify** (static SPA) + **Supabase** (Postgres, Auth, Storage, Edge Functions). Supabase project ref: `njqqqhiuaptiwvazqawn` (region Mumbai).
-- Future: same code wrapped with **Capacitor** for the iPhone App Store (needs Mac + Xcode + Apple Developer account). Keep everything web-standard so that stays possible (camera via `<input capture>`, no Node-only APIs in `src/`).
+- **Native app:** Expo / React Native app in `mobile/` (iOS + Android via EAS, same Supabase backend) — see "Mobile app" section. Keep pure logic in `src/lib/*` free of DOM/Node APIs so `mobile/scripts/sync-shared.mjs` can copy it.
 
 ## 2. Features (current)
 | Area | User can | Admin can |
@@ -145,12 +145,23 @@ First admin: sign up in the app, then `update public.profiles set role='admin' w
 - SEO: Netlify edge functions `netlify/edge-functions/recipe-seo.ts` (injects title, meta, OG, canonical, Recipe + Breadcrumb JSON-LD and plain HTML of the recipe into index.html for /recipes and /recipes/*; 404 + noindex for unknown slugs) and `sitemap.ts` (/sitemap.xml from public recipes). Both read Netlify env VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY at runtime. `public/robots.txt`. Tag pages are `/recipes?tag=…` / `?diet=…`.
 - Starter recipes (`supabase/seed_recipes.sql`): 6 popular healthy Indian dishes written in our own words with a reference link. Never copy recipe text or photos from other sites.
 
+## Mobile app (Expo / React Native) — `mobile/` (v12, 21 Nov 2026)
+- Separate Expo SDK 58 app (React 19.3, RN 0.88, Expo Router, routes in `mobile/src/app/`) on the **same Supabase project**, same tables/RLS/edge functions (`ai`, `track`). Distributed with **EAS** (`eas.json`: development / preview .apk / production). App id `life.fitoor.app`, scheme `fitoor://`. See `mobile/README.md`.
+- **Netlify never builds or publishes it**: `netlify.toml [build] ignore` skips the website build when a push only changes `mobile/` (first builds / same-ref deploys still build). Vite only bundles `src/`.
+- Env: `mobile/.env` (git-ignored) with `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, `EXPO_PUBLIC_WEB_URL` only — never service-role/AI keys. For EAS builds set the same 3 with `eas env:create`.
+- Client screens: tabs Today (streak, 📸 scanner CTA, juice reminder + move request, cycle strip, coach-note banner, `DayView`, ✨ chat FAB), Calendar, Progress, Gym, Plan (diet / juices / recipes / learn); stack: Me (profile, DOB 18+, diet pref, 🌸 women's health + period tracker, coach, plan features, last 5 sign-ins, terms/privacy, data-request mailto, sign out), Weight & inches, Labs (PDF/photo → AI → review → save, compare + trend), Scan, Chat, Recipes (list/mine/detail/share/editor with photo). TermsGate modal, cheer toasts.
+- Coach screens (`/coach`, coach + super admin): client list (search, needs attention, super-admin filter incl. waiting for a coach), juice-day move requests, recipe review queue (publish / send back), client page tabs Day (`DayView mode="admin"`, can add/edit), Calendar, Progress, Weight, Gym, Labs, Plan (juice group + diet plan view + women's health), Notes. Plan editor/templates, plans & features, coaches, assignment, juice booking, activity logs, AI weekly check-in, print, CSV stay **web-only** (button opens the web panel).
+- Shared logic: `mobile/src/shared/*` is COPIED from `src/lib` (dates, constants, cycle, labNames, juices, legal, measure, cheer, chatLog, juiceDays) by `npm run sync-shared` (`mobile/scripts/sync-shared.mjs`, rewrites window events → `mobile/src/lib/events.js`). **When you change one of those web libs, run sync-shared** (and keep `mobile/src/lib/recipes.js` in step with `src/lib/recipes.js`).
+- Native helpers: `mobile/src/lib/media.js` (expo-image-picker → expo-image-manipulator JPEG ≤1280px → upload to `media`/`recipes`; expo-document-picker for lab PDFs ≤4 MB; signed URLs), `supabase.js` (AsyncStorage session, AppState auto-refresh), `auth.jsx` (same `has()`/roles as web), `components/ui.jsx` kit, `theme.js` (sticker colours), `LineChart.jsx` (react-native-svg).
+- Install packages with `EXPO_OFFLINE=1 npx expo install <pkg>` in the sandbox (proxy blocks api.expo.dev). Check with `npm run check` (Metro Android bundle); `npx expo-doctor` needs network.
+
 ## 9. Roadmap / ideas not built yet
 - Push reminders at meal times (PWA push; iOS 16.4+ when installed to home screen) — needs a Supabase cron + web-push.
-- Capacitor iOS build.
+- ~~Capacitor iOS build~~ → replaced by the Expo app in `mobile/`. Next: push notifications (expo-notifications + Supabase cron), store listings.
 - Wearable import (Apple Health) once native.
 
 ## 10. Changelog
+- 2026-11-21 — **Expo mobile app** (v12): new `mobile/` folder, iOS + Android app on the same Supabase backend with client + coach screens (see Mobile app section). Netlify `ignore` rule so mobile-only pushes don't rebuild the site.
 - 2026-11-21 — **Pre-launch QA** (v11): end-to-end test of visitor, client, coach and super admin at 360/390/768/1024/1440 px. Fixes: Weight page sideways scroll on phones (measurement table in a grid), template dropdown overflow, chat/scanner meals now tagged cheat on a cheat day, AI weekly check-in no longer criticises cheat meals, friendlier login/signup errors, under-18 DOB blocked on Me, short-range chart axes, bigger tap targets (water glasses, toggles, footer links), labels on gym set inputs and note box. DB: helper functions no longer callable by visitors; public `recipes` bucket limited to images ≤ 3 MB (`supabase/migration_v11_hardening.sql`). QA accounts `qa-*@fitoor.life` kept on purpose (credentials in git-ignored `supabase/dev/QA_ACCOUNTS.md`); harness `supabase/dev/qa2.js`.
 - 2026-11-21 — v10: meals are reviewed before saving with editable kcal/protein/carbs/fat, 📸 Guess calories scanner, cheat meals/days, Terms of Service + Privacy Policy (DPDP Act) with consent gate. Weekly AI check-in now sends first name only. Migration `supabase/migration_v10_cheat_terms.sql`.
 - 2026-11-21 — **Body measurements** (v9): optional inches at 8 spots, inches lost, trends, chat logging, Progress sticker.

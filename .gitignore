@@ -22,3 +22,10 @@ supabase/dev/
 # personal data import scripts (health data) — keep local, never push
 supabase/import/
 supabase/RUN_IN_SUPABASE_v2.sql
+
+# Expo mobile app (mobile/ has its own .gitignore too)
+mobile/.env
+mobile/.expo/
+mobile/.expo-check/
+mobile/ios/
+mobile/android/
