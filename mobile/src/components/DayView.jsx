@@ -88,14 +88,7 @@ export default function DayView({ userId, date, mode = 'user' }) {
           }} />
       )}
 
-      {has('meals') && juiceDay && (
-        <Card title="Meals">
-          <T style={st.noFood}>🚫 Juice day: no other food today.{isCoach ? ' You can still record a slip below.' : ' If you feel unwell, message your coach.'}</T>
-          {(meals.length > 0 || isCoach) && SLOTS.filter((s) => isCoach || meals.some((m) => m.slot === s.key)).map((s) => (
-            <MealSlot key={s.key} slot={s} meals={meals.filter((m) => m.slot === s.key)} userId={userId} date={date} isCoach={isCoach} onChange={changed} />
-          ))}
-        </Card>
-      )}
+      {has('meals') && juiceDay && <JuiceDayMeals meals={meals} userId={userId} date={date} isCoach={isCoach} onChange={changed} />}
 
       {has('meals') && !juiceDay && (
         <Card title="Meals" action={<Btn small variant={cheatDay ? 'pop' : 'ghost'} title={cheatDay ? '🍕 Cheat day on' : '🍕 Cheat day?'} onPress={toggleCheatDay} style={cheatDay ? { backgroundColor: C.haldi } : null} />}>
@@ -117,6 +110,19 @@ export default function DayView({ userId, date, mode = 'user' }) {
 
       <Notes userId={userId} date={date} title={isCoach ? 'Notes for this day' : 'Coach’s notes'} />
     </View>
+  );
+}
+
+/** Juice day: juices only is the plan, but food can still be logged honestly (tagged so the coach sees it). */
+function JuiceDayMeals({ meals, userId, date, isCoach, onChange }) {
+  const [show, setShow] = useState(false);
+  const slots = SLOTS.filter((s) => show || isCoach || meals.some((m) => m.slot === s.key));
+  return (
+    <Card title="Meals">
+      <T style={st.noFood}>🧃 Juice day: the plan is juices only today.{isCoach ? ' Anything logged here is tagged as eaten on a juice day.' : ' If you did eat something (or your coach said it’s OK), log it below. It’s marked so your coach knows.'}</T>
+      {!isCoach && !show ? <Btn small variant="ghost" title="+ I ate something, log it" onPress={() => setShow(true)} style={{ alignSelf: 'flex-start' }} /> : null}
+      {slots.map((s) => <MealSlot key={s.key} slot={s} meals={meals.filter((m) => m.slot === s.key)} userId={userId} date={date} isCoach={isCoach} onChange={onChange} />)}
+    </Card>
   );
 }
 
@@ -276,6 +282,7 @@ function MealSlot({ slot, planSlot, meals, userId, date, isCoach, cheatDay = fal
               </Row>
             )}
             <T small muted>{fmtTime(m.eaten_at)}{m.kcal ? ` · ~${Math.round(m.kcal)} kcal` : ''}{m.protein_g ? ` · P ${Math.round(m.protein_g)}g` : ''}{m.carbs_g ? ` · C ${Math.round(m.carbs_g)}g` : ''}{m.fat_g ? ` · F ${Math.round(m.fat_g)}g` : ''}{m.ai?.edited_by_user ? ' · edited' : ''}</T>
+            {m.ai?.juice_day ? <T small style={{ color: C.red }}>🧃 Eaten on a juice day</T> : null}
             {m.ai?.plan_note ? <T small style={[st.aiNote, m.ai.plan_check === 'on_plan' ? { backgroundColor: '#E4DCFF' } : m.ai.plan_check ? { backgroundColor: C.pink } : null]}>✨ {m.ai.plan_note}</T> : null}
             {m.ai?.breakdown?.length > 0 && <Breakdown ai={m.ai} />}
             <Chips>

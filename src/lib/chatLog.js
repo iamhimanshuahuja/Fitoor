@@ -10,6 +10,11 @@ export const ACTION_FEATURE = { meal: 'meals', weight: 'weight', water: 'habits'
 export const actionAllowed = (a, has) => a.type in ACTION_FEATURE && (!ACTION_FEATURE[a.type] || has(ACTION_FEATURE[a.type]));
 
 /** Ask the AI to turn a chat message (and optional photo) into log entries. Nothing is saved here. */
+// Tell the AI which entry cards were actually saved, so it never claims something is logged when the save failed or was skipped.
+const cardNote = (m) => (m.actions?.length
+  ? ` [entry cards: ${m.actions.map((a) => `${a.type}${a.description ? ` "${a.description}"` : ''}: ${a._status === 'saved' ? 'SAVED' : a._status === 'skipped' ? 'skipped by user' : 'NOT saved'}${a._msg && a._status !== 'saved' ? ` (${a._msg})` : ''}`).join('; ')}]`
+  : '');
+
 export async function askChat({ userId, text, image, mime, history }) {
   const [{ data: plan }, { data: ex }] = await Promise.all([
     supabase.from('diet_plans').select('slots').eq('user_id', userId).eq('is_active', true).maybeSingle(),
@@ -26,7 +31,7 @@ export async function askChat({ userId, text, image, mime, history }) {
     plan: planSlots,
     habits: HABITS.map((h) => h.key), supplements: SUPPLEMENTS.map((s) => s.key), day_labels: DAY_LABELS,
     library: (ex || []).map((e) => e.name),
-    history: (history || []).map((m) => ({ from: m.role, text: m.text })).slice(-8),
+    history: (history || []).map((m) => ({ from: m.role, text: m.text + cardNote(m) })).slice(-8),
   });
 }
 

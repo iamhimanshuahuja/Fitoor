@@ -30,7 +30,7 @@ export default function Chat() {
     const body = (override ?? text).trim();
     if ((!body && !img) || busy) return;
     const mine = { id: uid(), role: 'user', text: body, localImg: img?.uri, at: Date.now() };
-    const history = msgs.filter((m) => m.text && !m.error).slice(-8).map(({ role, text: t }) => ({ role, text: t }));
+    const history = msgs.filter((m) => m.text && !m.error).slice(-8);
     setMsgs((m) => [...m, mine]); setText(''); setBusy(true);
     const photo = img; setImg(null);
     try {

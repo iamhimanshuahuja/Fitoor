@@ -162,6 +162,7 @@ First admin: sign up in the app, then `update public.profiles set role='admin' w
 - Wearable import (Apple Health) once native.
 
 ## 10. Changelog
+- 2026-11-21 — Juice days (v14): clients can log food they actually ate on a juice day (tagged 🧃, off plan) instead of being blocked. Log-by-chat now tells the AI which cards were SAVED / NOT saved / skipped (`cardNote` in `lib/chatLog.js`), so it no longer claims a failed save was logged.
 - 2026-11-21 — Logging fixes (web + mobile): tapping a diet-plan option in a meal slot now **logs it in one tap** as on plan (was only filling the text box, so nothing saved); every save shows a toast (new `cheer('saved')`, `cheer('removed')`, `cheer('error', msg)`), habit/supplement ticks included; DayView changes fire `ft:data-changed` so Calendar/Progress refresh (incl. editing a day inside the calendar sheet).
 - 2026-11-21 — **Profile photos** (v13): clients and coaches add a photo (web + mobile); shown in top bar, My coach, notes, coach lists and client header. Coaches get `/admin/me`. Private `avatars` bucket + RLS, `migration_v13_avatars.sql`.
 - 2026-11-21 — Mobile QA pass: every client/coach/auth screen and main tap flows checked at 390 px (web build + mocked Supabase). Fixes: crash in segmented control, screens rendering before the profile loaded, tab bar height on iPhones with a home bar, macro inputs running off-screen (now 2×2 `MacroFields`), meal edit/delete icons, typed YYYY-MM-DD dates → `DateField` ‹ date › picker, DOB as DD/MM/YYYY, comma decimals, iOS keyboard insets, gallery without permission prompt, coach invite Share button. Added expo-updates (OTA) and a publish menu in `mobile/build-app.command` (Android APK link, iOS TestFlight, push update, Expo Go).
@@ -211,7 +212,7 @@ First admin: sign up in the app, then `update public.profiles set role='admin' w
 - Table `juice_days(user_id, day, note, status scheduled|done|missed, request_day, request_reason, request_status pending|approved|declined)` — `supabase/migration_v4_juice_days.sql`.
 - Coach: UserDetail → Plan & access → "🧃 Juice days" (book dates, set juice amounts group, mark done/missed, approve/decline moves). Admin Overview shows pending requests + next 7 days.
 - Client: Today banner from 2 days before (`REMIND_DAYS`), "Request another day", "Add to my calendar" (.ics with alerts 2 days before + 7 am). Plan → Juices lists upcoming days.
-- On a juice day DayView shows the juice checklist instead of meal slots; DB trigger `block_food_on_juice_day` rejects client meal inserts that day (coach can still record).
+- On a juice day DayView shows the juice checklist; meals are hidden behind “+ I ate something, log it”. Since v14 the trigger `block_food_on_juice_day` no longer rejects: it tags the meal `ai.juice_day = true` and sets `followed = false` (unless cheat) so the coach sees it (`supabase/migration_v14_juice_day_food.sql`).
 - Trigger `guard_juice_day`: clients can only set request_day/reason (→ pending) or mark done. The old `juices` plan feature was removed from all plans.
 - Personal data import scripts (`supabase/import/`, `RUN_IN_SUPABASE_v2.sql`) are git-ignored: the GitHub repo is public.
 

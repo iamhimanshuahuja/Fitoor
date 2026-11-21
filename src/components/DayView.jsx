@@ -113,20 +113,7 @@ export default function DayView({ userId, date, mode = 'user', features }) {
           }} />
       )}
 
-      {has('meals') && juiceDay && (
-        <Card title="Meals">
-          <p className="jd-nofood">🚫 Juice day: no other food today.{isCoach ? ' Clients can’t log meals; you can still record a slip below.' : ' If you feel unwell, message your coach.'}</p>
-          {meals.length > 0 && (
-            <div className="slots">
-              {SLOTS.filter((s) => meals.some((m) => m.slot === s.key)).map((s) => (
-                <MealSlot key={s.key} slot={s} planSlot={null} meals={meals.filter((m) => m.slot === s.key)} userId={userId} date={date}
-                  editable={isCoach} admin={isCoach} has={has} onChange={changed} setLightbox={setLightbox} />
-              ))}
-            </div>
-          )}
-          {isCoach && !meals.length && <MealSlot slot={SLOTS.find((s) => s.key === 'other') || SLOTS.at(-1)} planSlot={null} meals={[]} userId={userId} date={date} editable admin has={has} onChange={changed} setLightbox={setLightbox} />}
-        </Card>
-      )}
+      {has('meals') && juiceDay && <JuiceDayMeals meals={meals} userId={userId} date={date} editable={editable} isCoach={isCoach} has={has} onChange={changed} setLightbox={setLightbox} />}
 
       {has('meals') && !juiceDay && (
         <Card title="Meals" action={editable && <button type="button" className={`btn btn-sm ${cheatDay ? 'btn-cheat' : 'btn-ghost'}`} aria-pressed={cheatDay} onClick={toggleCheatDay}>🍕 {cheatDay ? 'Cheat day on' : 'Cheat day?'}</button>}>
@@ -439,6 +426,7 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
             ) : <p>{m.description || <span className="muted">Photo only</span>}</p>}
             <small className="muted">{fmtTime(m.eaten_at)}{m.kcal ? ` · ~${Math.round(m.kcal)} kcal` : ''}{m.protein_g ? ` · P ${Math.round(m.protein_g)}g` : ''}{m.carbs_g ? ` · C ${Math.round(m.carbs_g)}g` : ''}{m.fat_g ? ` · F ${Math.round(m.fat_g)}g` : ''}{m.ai?.edited_by_user ? ' · edited' : ''}</small>
             {m.cheat && <span className="tag cheat-tag">🍕 Cheat meal</span>}
+            {m.ai?.juice_day && <span className="tag warn">🧃 On a juice day</span>}
             {m.ai?.plan_note && <small className={`ai-note ${m.ai.plan_check}`}><Sparkles size={12} /> {m.ai.plan_note}</small>}
             {m.ai?.breakdown?.length > 0 && (
               <details className="meal-breakdown"><summary>AI breakdown{m.ai.confidence ? ` · ${m.ai.confidence === 'high' ? 'good' : m.ai.confidence === 'low' ? 'rough' : 'fair'} guess` : ''}</summary>
@@ -554,3 +542,24 @@ function HabitsCard({ userId, date, value, editable, has, onSaved }) {
 }
 
 export { slotLabel };
+
+/** Juice day: no food is the plan, but if the client eats (e.g. the coach said OK) they can still log it honestly.
+ *  The database tags it ai.juice_day and counts it off plan, so the coach sees it. */
+function JuiceDayMeals({ meals, userId, date, editable, isCoach, has, onChange, setLightbox }) {
+  const [show, setShow] = useState(false);
+  const slots = SLOTS.filter((s) => show || isCoach || meals.some((m) => m.slot === s.key));
+  return (
+    <Card title="Meals">
+      <p className="jd-nofood">🧃 Juice day: the plan is juices only today.{isCoach ? ' Anything logged here is tagged as eaten on a juice day.' : ' If you did eat something (or your coach said it’s OK), log it below. It’s marked so your coach knows.'}</p>
+      {editable && !isCoach && !show && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShow(true)}>+ I ate something, log it</button>}
+      {slots.length > 0 && (
+        <div className="slots">
+          {slots.map((s) => (
+            <MealSlot key={s.key} slot={s} planSlot={null} meals={meals.filter((m) => m.slot === s.key)} userId={userId} date={date}
+              editable={editable} admin={isCoach} has={has} onChange={onChange} setLightbox={setLightbox} />
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
