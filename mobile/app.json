@@ -66,6 +66,9 @@
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "owner": "mr.himanshuahuja"
+    "owner": "mr.himanshuahuja",
+    "updates": {
+      "url": "https://u.expo.dev/36b88a53-7d74-4498-b9b8-e8fc9f3512a1"
+    }
   }
 }
