@@ -41,7 +41,12 @@ poha, rava upma, idli, white rice, white-rice dosa, bread, cornflakes/wheat flak
 and acidic / inflammatory items: milk tea or coffee, sugar / jaggery / honey, heavy dairy, alcohol, fried snacks.
 Return JSON only:
 {"items": [string], "portion_note": string, "kcal": number, "protein_g": number, "carbs_g": number, "fat_g": number,
+ "breakdown": [{"item": string, "portion": string (e.g. "2 rotis", "1 katori ~150 g"), "kcal": number, "protein_g": number}],
+ "confidence": "high"|"medium"|"low" (low if portions are hidden, the photo is unclear or it is mostly oil/gravy),
+ "swap_tip": string (one lighter swap for next time, max 16 words, Indian foods, no shaming; "" if the plate is already balanced),
  "plan_check": "on_plan"|"partly"|"off_plan"|"unknown", "plan_note": string (max 20 words, friendly)}
+The breakdown kcal must add up to the total kcal. Count visible oil/ghee, chutneys and drinks.
+If the photo is not food, return items [] and kcal 0 with plan_note "No food found in this photo".
 Estimates are approximate; never refuse — give your best estimate.`,
 
   machine: (b) => `This is a photo of gym equipment.

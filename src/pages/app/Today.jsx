@@ -1,3 +1,4 @@
+import CalorieScanner from '../../components/CalorieScanner';
 import { TodayWomensHealth } from '../../components/WomensHealth';
 import { isFemale } from '../../lib/cycle';
 import { useEffect, useState } from 'react';
@@ -58,8 +59,9 @@ function CoachNoteBanner({ userId, onOpen }) {
 }
 
 export default function Today() {
-  const { user, profile } = useAuth();
+  const { user, profile, has } = useAuth();
   const [sp, setSp] = useSearchParams();
+  const [scan, setScan] = useState(false);
   const date = sp.get('date') || today();
   const streak = useStreak(user.id);
   const hour = new Date().getHours();
@@ -77,6 +79,13 @@ export default function Today() {
         </div>
         <DateStrip value={date} onChange={(d) => setSp(d === today() ? {} : { date: d })} />
       </div>
+      {has('ai') && (
+        <button type="button" className="scan-cta" onClick={() => setScan(true)}>
+          <span className="scan-cta-emoji" aria-hidden>📸</span>
+          <span><b>Guess calories from a photo</b><small>Snap your plate, AI adds it up. Log it or just check.</small></span>
+        </button>
+      )}
+      {scan && <CalorieScanner date={date} onClose={() => setScan(false)} />}
       <JuiceReminder userId={user.id} />
       {profile && isFemale(profile) && <TodayWomensHealth profile={profile} />}
       <CoachNoteBanner userId={user.id} onOpen={(d) => setSp(d === today() ? {} : { date: d })} />

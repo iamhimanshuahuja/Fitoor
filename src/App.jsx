@@ -22,6 +22,8 @@ const Plans = lazy(() => import('./pages/admin/Plans'));
 const Coaches = lazy(() => import('./pages/admin/Coaches'));
 const AdminRecipes = lazy(() => import('./pages/admin/Recipes'));
 const RecipeList = lazy(() => import('./pages/recipes/RecipeList'));
+const Terms = lazy(() => import('./pages/legal/Terms'));
+const Privacy = lazy(() => import('./pages/legal/Privacy'));
 const RecipeDetail = lazy(() => import('./pages/recipes/RecipeDetail'));
 const RecipeEditor = lazy(() => import('./pages/recipes/RecipeEditor'));
 
@@ -65,6 +67,8 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/reset" element={<ResetPassword />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/privacy" element={<Privacy />} />
       <Route path="/recipes" element={<RecipeList />} />
       <Route path="/recipes/new" element={<RequireAuth><RecipeEditor /></RequireAuth>} />
       <Route path="/recipes/edit/:id" element={<RequireAuth><RecipeEditor /></RequireAuth>} />

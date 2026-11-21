@@ -57,7 +57,7 @@ export default function ProgressDashboard({ userId, profile }) {
     if (!base) return;
     setD(null);
     Promise.all([
-      supabase.from('meal_logs').select('log_date, kcal, protein_g, followed').eq('user_id', userId).gte('log_date', range.from).lte('log_date', range.to),
+      supabase.from('meal_logs').select('log_date, kcal, protein_g, carbs_g, fat_g, followed, cheat').eq('user_id', userId).gte('log_date', range.from).lte('log_date', range.to),
       supabase.from('workouts').select('log_date, duration_min, workout_sets(duration_min, incline, exercises(kind))').eq('user_id', userId).gte('log_date', range.from).lte('log_date', range.to),
     ]).then(([m, wo]) => setD({ ...base, meals: m.data || [], workouts: wo.data || [] }));
   }, [userId, base, range.from, range.to]);
@@ -87,15 +87,17 @@ export default function ProgressDashboard({ userId, profile }) {
         eaten: Math.round(ms.reduce((s, r) => s + (Number(r.kcal) || 0), 0)),
         burned: Math.round(ws.reduce((s, r) => s + workoutKcal(r, current), 0)),
         protein: Math.round(ms.reduce((s, r) => s + (Number(r.protein_g) || 0), 0)),
-        meals: ms.length, onPlan: ms.filter((r) => r.followed === true).length, gym: ws.length > 0,
+        carbs: Math.round(ms.reduce((s, r) => s + (Number(r.carbs_g) || 0), 0)),
+        fat: Math.round(ms.reduce((s, r) => s + (Number(r.fat_g) || 0), 0)),
+        meals: ms.length, planMeals: ms.filter((r) => !r.cheat).length, cheats: ms.filter((r) => r.cheat).length, onPlan: ms.filter((r) => r.followed === true).length, gym: ws.length > 0,
       };
     });
     const sum = (k) => week.reduce((s, r) => s + r[k], 0);
     const logged = week.filter((r) => r.meals || r.gym || W.some((w) => w.date === r.date)).length;
-    const meals = sum('meals'), onPlan = sum('onPlan');
+    const meals = sum('planMeals'), onPlan = sum('onPlan'), cheatMeals = sum('cheats');
     const gymDays = week.filter((r) => r.gym).length, gymGoal = Math.max(1, Math.round((nDays / 7) * 5));
     const rings = [
-      { key: 'plan', label: 'Meals on plan', v: meals ? onPlan / meals : 0, text: meals ? `${Math.round((onPlan / meals) * 100)}%` : '—', color: C.lime },
+      { key: 'plan', label: cheatMeals ? `Meals on plan (${cheatMeals} 🍕 cheat not counted)` : 'Meals on plan', v: meals ? onPlan / meals : 0, text: meals ? `${Math.round((onPlan / meals) * 100)}%` : '—', color: C.lime },
       { key: 'gym', label: 'Gym days', v: Math.min(1, gymDays / gymGoal), text: `${gymDays}/${gymGoal}`, color: C.haldi },
       { key: 'log', label: 'Days logged', v: logged / nDays, text: `${logged}/${nDays}`, color: C.lav },
     ];
@@ -134,7 +136,8 @@ export default function ProgressDashboard({ userId, profile }) {
     }).filter((t) => !onlyOut || t.flagged).sort((a, b) => (b.out || 0) - (a.out || 0) || a.name.localeCompare(b.name));
 
     return { inches, W, Wr, wFallback, start, startDate, current, target, lowest, lost, toGoal, pct, week, chart, nDays, rings, tests, reportDates, rFrom, rTo, panels,
-      eatenAvg: Math.round(sum('eaten') / Math.max(1, week.filter((r) => r.eaten).length)), burnedWeek: sum('burned'), proteinAvg: Math.round(sum('protein') / Math.max(1, week.filter((r) => r.protein).length)) };
+      eatenAvg: Math.round(sum('eaten') / Math.max(1, week.filter((r) => r.eaten).length)), burnedWeek: sum('burned'), proteinAvg: Math.round(sum('protein') / Math.max(1, week.filter((r) => r.protein).length)),
+      carbsAvg: Math.round(sum('carbs') / Math.max(1, week.filter((r) => r.carbs).length)), fatAvg: Math.round(sum('fat') / Math.max(1, week.filter((r) => r.fat).length)) };
   }, [d, profile, range, labFrom, labTo, panel, onlyOut]);
 
   if (!x) return <div className="center-pad"><Spinner /></div>;
@@ -198,6 +201,7 @@ export default function ProgressDashboard({ userId, profile }) {
           <Sticker tone="haldi" emoji="🍛" value={x.eatenAvg || null} empty="No meals logged" unit="kcal / day" label={`Eaten (avg/day, ${rangeLabel})`} />
           <Sticker tone="lav" emoji="🏋️" value={x.burnedWeek || null} empty="No workouts" unit="kcal" label={`Burned at gym (${rangeLabel}, est.)`} />
           <Sticker tone="sky" emoji="🫘" value={x.proteinAvg || null} empty="No protein data" unit="g / day" label={`Protein (avg/day, ${rangeLabel})`} />
+          {(x.carbsAvg > 0 || x.fatAvg > 0) && <Sticker tone="haldi" emoji="🍚" value={`${x.carbsAvg} · ${x.fatAvg}`} unit="g / day" label={`Carbs · fat (avg/day, ${rangeLabel})`} />}
           {x.inches && <Sticker tone="sky" emoji="📏" value={x.inches.lost > 0 ? +x.inches.lost.toFixed(1) : 0} unit="in" label={x.inches.lost > 0 ? `Inches lost · ${x.inches.sites} spots since ${fmt(x.inches.since)}` : `Inches · ${x.inches.sites} spots tracked`} />}
           <Sticker tone="lime" emoji="📉" value={x.lowest ? x.lowest.kg : null} empty="No weigh-ins" unit="kg" label={x.lowest ? `Lowest · ${fmt(x.lowest.date)}` : 'Lowest weight'} />
         </div>

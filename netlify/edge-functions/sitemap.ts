@@ -25,7 +25,7 @@ export default async () => {
     ...['veg', 'egg', 'nonveg'].map((d) => u(`${SITE}/recipes?diet=${d}`)),
     ...TAG_PAGES.map((t) => u(`${SITE}/recipes?tag=${t}`)),
     ...rows.map((r) => u(`${SITE}/recipes/${r.slug}`, `<lastmod>${r.updated_at.slice(0, 10)}</lastmod><priority>0.8</priority>`)),
-    u(`${SITE}/signup`), u(`${SITE}/login`),
+    u(`${SITE}/signup`), u(`${SITE}/login`), u(`${SITE}/terms`), u(`${SITE}/privacy`),
     '</urlset>',
   ].join('\n');
   return new Response(body, { headers: { 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=0', 'netlify-cdn-cache-control': 'public, s-maxage=3600' } });

@@ -37,7 +37,7 @@ export default function CalendarView({ userId, mode = 'user', features }) {
     const from = month, to = monthEnd(month);
     const q = (t, cols, dateCol = 'log_date') => supabase.from(t).select(cols).eq('user_id', userId).gte(dateCol, from).lte(dateCol, to);
     const [m, w, wo, h, c, l, jd, pl] = await Promise.all([
-      q('meal_logs', 'log_date, slot, followed, kcal, protein_g, description'),
+      q('meal_logs', 'log_date, slot, followed, cheat, kcal, protein_g, description'),
       q('weight_logs', 'log_date, weight_kg'),
       q('workouts', 'log_date, day_label, duration_min, workout_sets(id)'),
       q('habit_logs', 'log_date, habits, supplements'),
@@ -54,6 +54,7 @@ export default function CalendarView({ userId, mode = 'user', features }) {
     (h.data || []).forEach((x) => {
       const done = HABITS.filter((k) => x.habits?.[k.key]).length;
       day(x.log_date).habits = { done, total: HABITS.length, water: Number(x.habits?.water_glasses || 0) };
+      if (x.habits?.cheat_day) day(x.log_date).cheatDay = true;
       const j = x.habits?.juices || {};
       const jn = ['red', 'smoothie_am', 'green1', 'smoothie_pm', 'white'].filter((k) => j[k]).length + (j.green2 || j.tangy ? 1 : 0);
       if (jn) day(x.log_date).juices = jn;
@@ -86,7 +87,7 @@ export default function CalendarView({ userId, mode = 'user', features }) {
     const weights = vals.filter(([, d]) => d.weight).sort(([a], [b]) => a.localeCompare(b)).map(([, d]) => d.weight);
     return {
       logged: vals.filter(([, d]) => d.meals.length || d.workouts.length || d.weight).length,
-      onPlan: meals.length ? Math.round((meals.filter((x) => x.followed === true).length / meals.length) * 100) : null,
+      onPlan: meals.filter((x) => !x.cheat).length ? Math.round((meals.filter((x) => x.followed === true).length / meals.filter((x) => !x.cheat).length) * 100) : null,
       meals: meals.length,
       workouts: vals.reduce((s, [, d]) => s + d.workouts.length, 0),
       weightChange: weights.length > 1 ? +(weights.at(-1) - weights[0]).toFixed(1) : null,
@@ -131,7 +132,9 @@ export default function CalendarView({ userId, mode = 'user', features }) {
             const mealsOn = x?.meals.filter((m) => m.followed === true).length || 0;
             const mealsOff = x?.meals.filter((m) => m.followed === false).length || 0;
             const mealsN = x?.meals.length || 0;
-            const score = !x ? 0 : Math.min(1, (mealsN ? 0.45 * (mealsOn / mealsN) + 0.15 : 0) + (x.workouts.length ? 0.25 : 0) + (x.weight ? 0.15 : 0));
+            const cheatN = x?.meals.filter((m) => m.cheat).length || 0;
+            const planN = mealsN - cheatN;
+            const score = !x ? 0 : Math.min(1, (mealsN ? 0.45 * (planN ? mealsOn / planN : 1) + 0.15 : 0) + (x.workouts.length ? 0.25 : 0) + (x.weight ? 0.15 : 0));
             const label = `${fmtLong(d)}: ${mealsN} meals (${mealsOn} on plan)${x?.workouts.length ? ', workout' : ''}${x?.weight ? `, ${x.weight} kg` : ''}`;
             return (
               <button key={d} role="gridcell" aria-label={label}
@@ -142,10 +145,11 @@ export default function CalendarView({ userId, mode = 'user', features }) {
                   <span className="cal-marks">
                     {on('meals') && mealsN > 0 && (
                       <span className="cal-meals" title={`${mealsN} meals`}>
-                        {x.meals.slice(0, 7).map((m, j) => <i key={j} className={m.followed === true ? 'ok' : m.followed === false ? 'off' : ''} />)}
-                        <em>{mealsOn}/{mealsN}</em>
+                        {x.meals.slice(0, 7).map((m, j) => <i key={j} className={m.cheat ? 'cheat' : m.followed === true ? 'ok' : m.followed === false ? 'off' : ''} />)}
+                        <em>{mealsOn}/{planN}</em>
                       </span>
                     )}
+                    {on('meals') && (x.cheatDay || cheatN > 0) && <span className="cal-tag cheat">🍕<em>{x.cheatDay ? 'Cheat day' : 'Cheat'}</em></span>}
                     {on('gym') && x.workouts.length > 0 && <span className="cal-tag gym">🏋️<em>{x.workouts[0].day_label || 'Gym'}</em></span>}
                     {on('weight') && x.weight && <span className="cal-tag wt">⚖️<em>{x.weight}</em></span>}
                     {on('habits') && x.habits && <span className="cal-tag hab">✅<em>{x.habits.done}/{x.habits.total}</em></span>}
@@ -162,7 +166,7 @@ export default function CalendarView({ userId, mode = 'user', features }) {
         </div>
       </div>
       <p className="cal-legend small muted">
-        <span><i className="lg ok" /> meal on plan</span> <span><i className="lg off" /> off plan</span> <span><i className="lg" /> not marked</span> · darker day = better day
+        <span><i className="lg ok" /> meal on plan</span> <span><i className="lg off" /> off plan</span> <span><i className="lg cheat" /> cheat</span> <span><i className="lg" /> not marked</span> · darker day = better day
       </p>
 
       {open && (

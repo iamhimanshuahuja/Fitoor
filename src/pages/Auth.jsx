@@ -1,3 +1,4 @@
+import { TERMS_VERSION } from '../lib/legal';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase, rememberMe, setRememberMe } from '../lib/supabase';
@@ -13,6 +14,7 @@ function AuthFrame({ title, sub, children }) {
         <h1>{title}</h1>
         {sub && <p className="muted">{sub}</p>}
         {children}
+        <p className="auth-legal small muted"><Link to="/terms">Terms</Link> · <Link to="/privacy">Privacy</Link></p>
       </div>
     </div>
   );
@@ -76,17 +78,20 @@ export function Signup() {
   const nav = useNavigate();
   const cc = useCoachCode();
   const [f, setF] = useState({ full_name: '', phone: '', email: '', password: '' });
+  const [agree, setAgree] = useState(false);
   const [err, setErr] = useState('');
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
   const submit = async (e) => {
-    e.preventDefault(); setBusy(true); setErr('');
+    e.preventDefault();
+    if (!agree) return setErr('Please tick the box to agree to the Terms and Privacy Policy.');
+    setBusy(true); setErr('');
     setRememberMe(true); markSessionLogged();
     const { data, error } = await supabase.auth.signUp({
       email: f.email, password: f.password,
-      options: { data: { full_name: f.full_name, phone: f.phone, coach_code: cc.coach.state === 'ok' ? cc.code.trim().toUpperCase() : '' }, emailRedirectTo: `${location.origin}/app` },
+      options: { data: { full_name: f.full_name, phone: f.phone, coach_code: cc.coach.state === 'ok' ? cc.code.trim().toUpperCase() : '', terms_version: TERMS_VERSION, terms_agreed_at: new Date().toISOString() }, emailRedirectTo: `${location.origin}/app` },
     });
     setBusy(false);
     if (error) { clearSessionMark(); return setErr(error.message); }
@@ -110,8 +115,12 @@ export function Signup() {
             : cc.coach.state === 'checking' ? 'Checking code…'
             : 'Got a code from your coach? Enter it here. No code? Leave it empty and we’ll assign a coach.'}
         </p>
+        <label className="check signup-agree">
+          <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} required />
+          <span>I’m 18 or older and I agree to the <Link to="/terms" target="_blank">Terms of Service</Link> and <Link to="/privacy" target="_blank">Privacy Policy</Link>, including the processing of my health data and the use of AI features.</span>
+        </label>
         {err && <p className="error">{err}</p>}
-        <button className="btn btn-primary btn-block" disabled={busy}>{busy ? <Spinner /> : 'Sign up'}</button>
+        <button className="btn btn-primary btn-block" disabled={busy || !agree}>{busy ? <Spinner /> : 'Sign up'}</button>
         <p className="small muted auth-note">To keep your account safe we log each sign-in: time, IP address, approximate city and device. You can see yours under Me.</p>
       </form>
       <p className="auth-alt">Already have an account? <Link to="/login">Log in</Link></p>

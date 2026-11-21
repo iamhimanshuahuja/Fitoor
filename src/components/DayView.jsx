@@ -62,9 +62,20 @@ export default function DayView({ userId, date, mode = 'user', features }) {
 
   const kcal = meals.reduce((s, m) => s + (Number(m.kcal) || 0), 0);
   const protein = meals.reduce((s, m) => s + (Number(m.protein_g) || 0), 0);
+  const carbs = meals.reduce((s, m) => s + (Number(m.carbs_g) || 0), 0);
+  const fat = meals.reduce((s, m) => s + (Number(m.fat_g) || 0), 0);
   const firstMeal = meals.filter((m) => !['early_morning', 'before_breakfast', 'bedtime'].includes(m.slot)).map((m) => m.eaten_at).sort()[0];
   const fastH = lastMealBefore && firstMeal ? (new Date(firstMeal) - new Date(lastMealBefore)) / 36e5 : null;
   const onPlan = meals.filter((m) => m.followed === true).length;
+  const cheats = meals.filter((m) => m.cheat).length;
+  const cheatDay = !!habits.habits?.cheat_day;
+  const toggleCheatDay = async () => {
+    const next = { ...(habits.habits || {}), cheat_day: !cheatDay };
+    if (!next.cheat_day) delete next.cheat_day;
+    setHabits({ ...habits, habits: next });
+    const { error } = await supabase.from('habit_logs').upsert({ user_id: userId, log_date: date, habits: next, supplements: habits.supplements || {} }, { onConflict: 'user_id,log_date' });
+    if (!error && next.cheat_day && !isCoach) cheer('cheat_day');
+  };
 
   if (loading) return <div className="center-pad"><Spinner size={24} /></div>;
 
@@ -72,9 +83,11 @@ export default function DayView({ userId, date, mode = 'user', features }) {
     <div className="dayview">
       <div className="day-summary">
         {has('weight') && <div className="pill"><Scale size={16} /> {weight ? `${weight.weight_kg} kg` : 'No weight'}</div>}
-        {has('meals') && <div className="pill"><Check size={16} /> {onPlan}/{meals.length} meals on plan</div>}
+        {has('meals') && <div className="pill"><Check size={16} /> {onPlan}/{meals.length - cheats} meals on plan</div>}
+        {cheats > 0 && <div className="pill pill-cheat">🍕 {cheats} cheat meal{cheats > 1 ? 's' : ''}</div>}
         {kcal > 0 && <div className="pill"><Flame size={16} /> ~{Math.round(kcal)} kcal</div>}
         {protein > 0 && <div className="pill"><Bean size={16} /> ~{Math.round(protein)} g protein</div>}
+        {(carbs > 0 || fat > 0) && <div className="pill" title="Carbs / fat today">C ~{Math.round(carbs)} g · F ~{Math.round(fat)} g</div>}
         {fastH != null && fastH > 0 && fastH < 30 && (
           <div className={`pill ${fastH >= 12 ? 'pill-good' : 'pill-warn'}`} title="Dinner yesterday → first meal today (plan: 12 h)">
             <Timer size={16} /> {Math.floor(fastH)}h {Math.round((fastH % 1) * 60)}m fast {fastH >= 12 ? '✓' : ''}
@@ -113,7 +126,8 @@ export default function DayView({ userId, date, mode = 'user', features }) {
       )}
 
       {has('meals') && !juiceDay && (
-        <Card title="Meals">
+        <Card title="Meals" action={editable && <button type="button" className={`btn btn-sm ${cheatDay ? 'btn-cheat' : 'btn-ghost'}`} aria-pressed={cheatDay} onClick={toggleCheatDay}>🍕 {cheatDay ? 'Cheat day on' : 'Cheat day?'}</button>}>
+          {cheatDay && <p className="cheat-banner">🍕 <b>Cheat day.</b> Enjoy it, no guilt. Meals you log today are tagged as cheat and don’t count against your plan or streak. Back on track tomorrow 💪</p>}
           <div className="slots">
             {SLOTS.map((s) => {
               const ps = plan?.slots?.find((x) => x.key === s.key);
@@ -121,7 +135,7 @@ export default function DayView({ userId, date, mode = 'user', features }) {
               if (!editable && !list.length) return null;
               if (s.key === 'other' && !list.length && !editable) return null;
               return (
-                <MealSlot key={s.key} slot={s} planSlot={ps} meals={list} userId={userId} date={date}
+                <MealSlot key={s.key} slot={s} planSlot={ps} meals={list} userId={userId} date={date} cheatDay={cheatDay}
                   editable={editable} admin={isCoach} has={has} onChange={load} setLightbox={setLightbox} />
               );
             })}
@@ -296,48 +310,75 @@ function WeightQuick({ userId, date, weight, editable, onSaved, setLightbox }) {
   );
 }
 
-function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, onChange, setLightbox }) {
+function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, onChange, setLightbox, cheatDay = false }) {
   const [open, setOpen] = useState(false);
+  const [cheat, setCheat] = useState(cheatDay);
+  useEffect(() => { setCheat(cheatDay); }, [cheatDay]);
   const [desc, setDesc] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
-  const add = async (file) => {
+  // Draft meal: photo (uploaded) + AI guess + editable numbers. Nothing is saved until "Add meal".
+  const EMPTY_N = { kcal: '', protein_g: '', carbs_g: '', fat_g: '' };
+  const [nutr, setNutr] = useState(EMPTY_N);
+  const [photo, setPhoto] = useState(null);   // { path }
+  const [ai, setAi] = useState(null);
+  const setN = (k) => (e) => setNutr({ ...nutr, [k]: e.target.value });
+  const r1 = (v) => (v == null || v === '' ? '' : String(Math.round(Number(v) * 10) / 10));
+
+  const attach = async (file) => {
     setBusy(true); setErr('');
     try {
-      let photo_path = null, ai = null, nutr = {};
-      if (file) {
-        const up = await uploadMedia(userId, 'meals', file);
-        photo_path = up.path;
-        if (has('ai')) {
-          try {
-            ai = await runAI('meal', {
-              image: await toBase64(up.file), mime: up.file.type, slot: slot.label, note: desc,
-              plan: planSlot ? { items: planSlot.items, avoid: planSlot.avoid } : null,
-            });
-            nutr = { kcal: ai?.kcal, protein_g: ai?.protein_g, carbs_g: ai?.carbs_g, fat_g: ai?.fat_g };
-          } catch (e) { setErr(`AI: ${e.message}`); }
-        }
+      if (photo?.path) await supabase.storage.from('media').remove([photo.path]);
+      const up = await uploadMedia(userId, 'meals', file);
+      setPhoto({ path: up.path }); setAi(null);
+      if (has('ai')) {
+        try {
+          const r = await runAI('meal', {
+            image: await toBase64(up.file), mime: up.file.type, slot: slot.label, note: desc,
+            plan: planSlot ? { items: planSlot.items, avoid: planSlot.avoid } : null,
+          });
+          setAi(r);
+          setNutr({ kcal: r1(r?.kcal), protein_g: r1(r?.protein_g), carbs_g: r1(r?.carbs_g), fat_g: r1(r?.fat_g) });
+          if (!desc && r?.items?.length) setDesc(r.items.join(', '));
+        } catch (e) { setErr(`AI couldn’t read it: ${e.message}. You can type the details.`); }
       }
-      const followed = ai?.plan_check ? ai.plan_check === 'on_plan' : null;
-      const { error } = await supabase.from('meal_logs').insert({
-        user_id: userId, log_date: date, slot: slot.key, photo_path, ai, followed,
-        description: desc || (ai?.items || []).join(', ') || null, ...nutr,
-      });
-      if (error) throw error;
-      setDesc(''); setOpen(false); onChange();
-      cheer(followed === true ? 'on_plan' : 'meal');
     } catch (e) { setErr(e.message); }
     setBusy(false);
+  };
+  // closing the slot with an unsaved photo → delete it so nothing is kept that wasn't logged
+  useEffect(() => { if (!open && photo?.path) { supabase.storage.from('media').remove([photo.path]); setPhoto(null); setAi(null); setNutr(EMPTY_N); } }, [open]);
+  const resetDraft = async (removePhoto) => {
+    if (removePhoto && photo?.path) await supabase.storage.from('media').remove([photo.path]);
+    setPhoto(null); setAi(null); setNutr(EMPTY_N); setDesc(''); setErr('');
+  };
+  const add = async () => {
+    if (!desc.trim() && !photo) return setErr('Add a photo or say what you had');
+    setBusy(true); setErr('');
+    const num = (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Math.max(0, Number(v)));
+    const followed = cheat ? null : ai?.plan_check ? ai.plan_check === 'on_plan' : null;
+    const edited = ai && ['kcal', 'protein_g', 'carbs_g', 'fat_g'].some((k) => num(nutr[k]) !== (ai[k] == null ? null : Math.round(Number(ai[k]) * 10) / 10));
+    const { error } = await supabase.from('meal_logs').insert({
+      user_id: userId, log_date: date, slot: slot.key, photo_path: photo?.path || null, followed, cheat,
+      ai: ai ? { ...ai, edited_by_user: edited || undefined } : null,
+      description: desc.trim() || null,
+      kcal: num(nutr.kcal), protein_g: num(nutr.protein_g), carbs_g: num(nutr.carbs_g), fat_g: num(nutr.fat_g),
+    });
+    setBusy(false);
+    if (error) return setErr(error.message);
+    setPhoto(null); setAi(null); setNutr(EMPTY_N); setDesc(''); setOpen(false); onChange();
+    if (!admin) cheer(cheat ? 'cheat' : followed === true ? 'on_plan' : 'meal');
+    else cheer('update');
   };
 
   const [editing, setEditing] = useState(null);
   const saveEdit = async () => {
     const num = (v) => (v === '' || v == null ? null : Number(v));
-    await supabase.from('meal_logs').update({ description: editing.description || null, kcal: num(editing.kcal), protein_g: num(editing.protein_g) }).eq('id', editing.id);
+    await supabase.from('meal_logs').update({ description: editing.description || null, kcal: num(editing.kcal), protein_g: num(editing.protein_g), carbs_g: num(editing.carbs_g), fat_g: num(editing.fat_g) }).eq('id', editing.id);
     setEditing(null); onChange(); cheer('update');
   };
-  const setFollowed = async (m, v) => { const { error } = await supabase.from('meal_logs').update({ followed: v }).eq('id', m.id); onChange(); if (!error && v && m.followed !== true) cheer('on_plan'); };
+  const toggleMealCheat = async (m) => { const v = !m.cheat; await supabase.from('meal_logs').update({ cheat: v, ...(v ? { followed: null } : {}) }).eq('id', m.id); onChange(); if (v && !admin) cheer('cheat'); };
+  const setFollowed = async (m, v) => { const { error } = await supabase.from('meal_logs').update({ followed: v, cheat: false }).eq('id', m.id); onChange(); if (!error && v && m.followed !== true) cheer('on_plan'); };
   const del = async (m) => {
     if (!confirm('Delete this meal entry?')) return;
     if (m.photo_path) await supabase.storage.from('media').remove([m.photo_path]);
@@ -363,6 +404,8 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
                 <div className="row gap">
                   <label className="grow">kcal<input type="number" value={editing.kcal ?? ''} onChange={(e) => setEditing({ ...editing, kcal: e.target.value })} /></label>
                   <label className="grow">Protein g<input type="number" value={editing.protein_g ?? ''} onChange={(e) => setEditing({ ...editing, protein_g: e.target.value })} /></label>
+                  <label className="grow">Carbs g<input type="number" value={editing.carbs_g ?? ''} onChange={(e) => setEditing({ ...editing, carbs_g: e.target.value })} /></label>
+                  <label className="grow">Fat g<input type="number" value={editing.fat_g ?? ''} onChange={(e) => setEditing({ ...editing, fat_g: e.target.value })} /></label>
                 </div>
                 <div className="row gap">
                   <button className="btn btn-primary btn-sm" onClick={saveEdit}>Save</button>
@@ -370,11 +413,18 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
                 </div>
               </div>
             ) : <p>{m.description || <span className="muted">Photo only</span>}</p>}
-            <small className="muted">{fmtTime(m.eaten_at)}{m.kcal ? ` · ~${Math.round(m.kcal)} kcal` : ''}{m.protein_g ? ` · P ${Math.round(m.protein_g)}g` : ''}</small>
+            <small className="muted">{fmtTime(m.eaten_at)}{m.kcal ? ` · ~${Math.round(m.kcal)} kcal` : ''}{m.protein_g ? ` · P ${Math.round(m.protein_g)}g` : ''}{m.carbs_g ? ` · C ${Math.round(m.carbs_g)}g` : ''}{m.fat_g ? ` · F ${Math.round(m.fat_g)}g` : ''}{m.ai?.edited_by_user ? ' · edited' : ''}</small>
+            {m.cheat && <span className="tag cheat-tag">🍕 Cheat meal</span>}
             {m.ai?.plan_note && <small className={`ai-note ${m.ai.plan_check}`}><Sparkles size={12} /> {m.ai.plan_note}</small>}
+            {m.ai?.breakdown?.length > 0 && (
+              <details className="meal-breakdown"><summary>AI breakdown{m.ai.confidence ? ` · ${m.ai.confidence === 'high' ? 'good' : m.ai.confidence === 'low' ? 'rough' : 'fair'} guess` : ''}</summary>
+                <ul>{m.ai.breakdown.map((b, i) => <li key={i}><span>{b.item}{b.portion ? ` · ${b.portion}` : ''}</span><em>~{Math.round(b.kcal * (m.ai.portion_multiplier || 1))} kcal</em></li>)}</ul>
+              </details>
+            )}
             <div className="meal-actions">
               <button className={`chip ${m.followed === true ? 'on ok' : ''}`} onClick={() => setFollowed(m, true)}><Check size={14} /> On plan</button>
               <button className={`chip ${m.followed === false ? 'on bad' : ''}`} onClick={() => setFollowed(m, false)}><X size={14} /> Off plan</button>
+              <button className={`chip ${m.cheat ? 'on cheat' : ''}`} aria-pressed={!!m.cheat} onClick={() => toggleMealCheat(m)} title="Planned treat: doesn’t count against your plan">🍕 Cheat</button>
               {editable && <button className="icon-btn sm" onClick={() => setEditing({ ...m })} aria-label="Edit"><Pencil size={15} /></button>}
               {editable && <button className="icon-btn sm" onClick={() => del(m)} aria-label="Delete"><Trash2 size={15} /></button>}
             </div>
@@ -389,12 +439,31 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
             </div>
           )}
           {planSlot?.avoid?.length > 0 && <p className="avoid">Avoid: {planSlot.avoid.join(', ')}</p>}
-          <textarea rows={2} placeholder="What did you have? (optional with photo)" value={desc} onChange={(e) => setDesc(e.target.value)} />
-          <div className="row gap wrap">
-            {has('meal_photos') && <PhotoInput onFile={add} busy={busy} label="Gallery" />}
-            <button className="btn btn-primary" disabled={busy || !desc} onClick={() => add(null)}>Save text only</button>
+          {photo && (
+            <div className="draft-photo">
+              <SignedImg path={photo.path} className="thumb" />
+              <div>
+                {ai?.plan_note && <small className={`ai-note ${ai.plan_check}`}><Sparkles size={12} /> {ai.plan_note}</small>}
+                {ai && <small className="muted">AI guess{ai.confidence ? ` (${ai.confidence === 'high' ? 'good' : ai.confidence === 'low' ? 'rough' : 'fair'})` : ''}. Check the numbers below and fix anything that’s off.</small>}
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => resetDraft(true)}>Remove photo</button>
+              </div>
+            </div>
+          )}
+          <textarea rows={2} placeholder="What did you have? e.g. 2 roti, dal, salad" value={desc} onChange={(e) => setDesc(e.target.value)} />
+          <div className="nutr-row" role="group" aria-label="Nutrition for this meal">
+            <label>kcal<input type="number" inputMode="decimal" min="0" value={nutr.kcal} onChange={setN('kcal')} placeholder="–" /></label>
+            <label>Protein g<input type="number" inputMode="decimal" min="0" step="0.1" value={nutr.protein_g} onChange={setN('protein_g')} placeholder="–" /></label>
+            <label>Carbs g<input type="number" inputMode="decimal" min="0" step="0.1" value={nutr.carbs_g} onChange={setN('carbs_g')} placeholder="–" /></label>
+            <label>Fat g<input type="number" inputMode="decimal" min="0" step="0.1" value={nutr.fat_g} onChange={setN('fat_g')} placeholder="–" /></label>
           </div>
-          {busy && <p className="muted small"><Spinner size={14} /> Uploading{has('ai') ? ' & analysing' : ''}…</p>}
+          <p className="small muted nutr-hint">{has('ai') && has('meal_photos') ? 'Add a photo and AI fills these in. You can change any number before adding.' : 'Optional. Fill in what you know.'}</p>
+          <label className="check cheat-check"><input type="checkbox" checked={cheat} onChange={(e) => setCheat(e.target.checked)} /> 🍕 Cheat meal <span className="muted small">(planned treat, no guilt)</span></label>
+          <div className="row gap wrap">
+            {has('meal_photos') && <PhotoInput onFile={attach} busy={busy} label={photo ? 'Change photo' : has('ai') ? 'Photo (AI guesses)' : 'Add photo'} />}
+            <button className="btn btn-primary" disabled={busy || (!desc.trim() && !photo)} onClick={add}>Add meal</button>
+            {(photo || desc || nutr.kcal) && <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => resetDraft(true)}>Clear</button>}
+          </div>
+          {busy && <p className="muted small"><Spinner size={14} /> {photo ? 'Saving' : 'Uploading'}{has('ai') && !photo ? ' & guessing calories' : ''}…</p>}
         </div>
       )}
       {err && <p className="error small">{err}</p>}

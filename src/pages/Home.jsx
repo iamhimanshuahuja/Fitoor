@@ -259,7 +259,7 @@ export default function Home() {
 
       <footer className="h-footer">
         <Logo full height={56} />
-        <nav className="h-footlinks"><Link to="/recipes">Healthy Indian recipes</Link><Link to="/recipes?tag=weight_loss">Weight-loss recipes</Link><Link to="/recipes?tag=high_protein">High-protein recipes</Link><Link to="/recipes?diet=veg">Veg recipes</Link></nav>
+        <nav className="h-footlinks"><Link to="/recipes">Healthy Indian recipes</Link><Link to="/recipes?tag=weight_loss">Weight-loss recipes</Link><Link to="/recipes?tag=high_protein">High-protein recipes</Link><Link to="/recipes?diet=veg">Veg recipes</Link><Link to="/terms">Terms</Link><Link to="/privacy">Privacy</Link></nav>
         <p>Not medical advice. Talk to your doctor about lab results.</p>
       </footer>
     </div>

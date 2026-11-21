@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { SITES as MEASURE_SITES } from '../lib/measure';
 import { cheer } from '../lib/cheer';
 import { useEffect, useRef, useState } from 'react';
@@ -108,6 +109,7 @@ export default function ChatLog() {
               <div className="chat-empty">
                 <p>Tell me what you ate, weighed, drank or did at the gym, in your own words. Or add a photo of your plate or scale.</p>
                 <div className="chat-examples">{EXAMPLES.map((e) => <button key={e} className="chip" onClick={() => send(e)}>{e}</button>)}</div>
+                <p className="small muted chat-legal">Your message and photo go to our AI provider to make log cards. Nothing is saved until you tap Save. <Link to="/privacy#ai">How we use AI</Link></p>
               </div>
             )}
             {msgs.map((m) => (
@@ -159,7 +161,7 @@ function ActionCard({ a, onChange, onSave, onSkip }) {
     body = (<>
       <label className="full">What<input value={a.description || ''} disabled={locked} onChange={(e) => onChange({ description: e.target.value })} /></label>
       <label>Slot<select value={a.slot || 'other'} disabled={locked} onChange={(e) => onChange({ slot: e.target.value })}>{SLOTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}</select></label>
-      {num('kcal', 'kcal', '1')}{num('protein_g', 'Protein g', '1')}
+      {num('kcal', 'kcal', '1')}{num('protein_g', 'Protein g', '1')}{num('carbs_g', 'Carbs g', '1')}{num('fat_g', 'Fat g', '1')}
       {a.plan_note && <small className={`ai-note ${a.plan_check} full`}><Sparkles size={12} /> {a.plan_note}</small>}
       {a.uses_photo && <small className="muted full">📷 Photo will be attached</small>}
     </>);

@@ -15,6 +15,8 @@ export const CHEERS = {
   profile: ['✅', 'Profile updated', ['You’re all set.', 'Fresh goals, fresh energy.']],
   habits_all: ['✅', 'All habits done!', ['Perfect day energy.', 'Habits stacked. That’s discipline.']],
   water: ['💧', 'Water goal hit', ['Hydrated and glowing.', 'Your body says thank you.']],
+  cheat: ['🍕', 'Cheat meal logged', ['Enjoy it. One meal doesn’t undo your week.', 'Logged honestly. That’s real discipline.', 'Treat yourself, then back to the plan.']],
+  cheat_day: ['🍕', 'Cheat day on', ['Enjoy today. Back on track tomorrow 💪', 'Rest days for the plate are part of the plan.']],
   measure: ['📏', 'Measurements saved', ['Inches tell the story the scale misses.', 'Tape doesn’t lie. Nice consistency.', 'Tracked. Check back in 2 weeks.']],
   recipe: ['🍽️', 'Recipe saved', ['Your recipe book just got tastier.', 'Cook it, snap it, share it.']],
   recipe_review: ['🍽️', 'Sent for review', ['A coach will check it soon. Thanks for sharing!', 'Nice one! It goes live once a coach approves it.']],

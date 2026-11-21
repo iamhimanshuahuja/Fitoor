@@ -19,7 +19,7 @@ export default function AiWeeklySummary({ userId, profile }) {
     try {
       const since = addDays(today(), -6);
       const [m, w, wo, h, labs, plan] = await Promise.all([
-        supabase.from('meal_logs').select('log_date, slot, description, followed, kcal, protein_g').eq('user_id', userId).gte('log_date', since).order('log_date'),
+        supabase.from('meal_logs').select('log_date, slot, description, followed, cheat, kcal, protein_g').eq('user_id', userId).gte('log_date', since).order('log_date'),
         supabase.from('weight_logs').select('log_date, weight_kg, waist_cm').eq('user_id', userId).order('log_date', { ascending: false }).limit(14),
         supabase.from('workouts').select('log_date, day_label, duration_min, workout_sets(reps, weight_kg, duration_min, exercises(name))').eq('user_id', userId).gte('log_date', since),
         supabase.from('habit_logs').select('log_date, habits, supplements').eq('user_id', userId).gte('log_date', since),
@@ -27,7 +27,7 @@ export default function AiWeeklySummary({ userId, profile }) {
         supabase.from('diet_plans').select('title, guidelines').eq('user_id', userId).eq('is_active', true).maybeSingle(),
       ]);
       const data = {
-        client: { name: profile?.full_name, goal: profile?.goal, start_weight: profile?.start_weight, target_weight: profile?.target_weight },
+        client: { first_name: (profile?.full_name || '').split(' ')[0] || null, goal: profile?.goal, start_weight: profile?.start_weight, target_weight: profile?.target_weight },
         plan: plan.data, meals: m.data, weights: w.data,
         workouts: (wo.data || []).map((x) => ({ date: x.log_date, day: x.day_label, mins: x.duration_min, exercises: [...new Set((x.workout_sets || []).map((s) => s.exercises?.name))] })),
         habits: h.data, flagged_labs: labs.data,

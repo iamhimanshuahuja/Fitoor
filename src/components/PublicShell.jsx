@@ -26,6 +26,8 @@ export default function PublicShell({ children }) {
           <Link to="/recipes?tag=high_protein">High-protein recipes</Link>
           <Link to="/recipes?tag=pcos_friendly">PCOS-friendly recipes</Link>
           <Link to="/signup">Join Fitoor</Link>
+          <Link to="/terms">Terms</Link>
+          <Link to="/privacy">Privacy</Link>
         </nav>
         <small>Recipes are for general healthy eating, not medical advice. Nutrition values are estimates.</small>
       </footer>

@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+import { LEGAL_CONTACT } from '../../lib/legal';
 import { cheer } from '../../lib/cheer';
 import { WomensHealthForm, PeriodTracker } from '../../components/WomensHealth';
 import { isFemale } from '../../lib/cycle';
@@ -98,6 +100,15 @@ export default function Profile() {
       </Card>
       <LoginHistory userId={profile.id} limit={5} title="Recent sign-ins on your account" compact />
       <p className="small muted">Don’t recognise a sign-in? Change your password from the login page (Forgot password) and tell your coach.</p>
+      <Card title="Privacy & terms">
+        <p className="small">{profile.terms_accepted_at ? `You agreed to our Terms and Privacy Policy on ${new Date(profile.terms_accepted_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.` : 'Terms not agreed yet.'}</p>
+        <div className="row gap wrap">
+          <Link className="btn btn-ghost btn-sm" to="/terms">Terms of Service</Link>
+          <Link className="btn btn-ghost btn-sm" to="/privacy">Privacy Policy</Link>
+          <Link className="btn btn-ghost btn-sm" to="/privacy#ai">How we use AI</Link>
+        </div>
+        <p className="small muted">Want a copy of your data, a correction, or your account deleted? Email <a href={`mailto:${LEGAL_CONTACT}?subject=Fitoor%20data%20request&body=Account%20email%3A%20${encodeURIComponent(profile.email || '')}%0A%0ARequest%3A%20`}>{LEGAL_CONTACT}</a> from your account email. We reply within 30 days.</p>
+      </Card>
     </div>
   );
 }

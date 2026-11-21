@@ -1,4 +1,5 @@
 import ChatLog from './ChatLog';
+import TermsGate from './TermsGate';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { CalendarDays, CalendarRange, TrendingUp, Scale, Dumbbell, FlaskConical, ClipboardList, User, LayoutDashboard, Users, Layers, LogOut, Shield, ChefHat } from 'lucide-react';
 import { useAuth } from '../lib/auth';
@@ -19,9 +20,9 @@ export function AppLayout() {
     { to: '/app/profile', label: 'Me', icon: User, show: true },
   ].filter((i) => i.show);
   return (
-    <Shell items={items} subtitle={profile?.full_name} extra={isAdmin && (
+    <><TermsGate /><Shell items={items} subtitle={profile?.full_name} extra={isAdmin && (
       <NavLink to="/admin" className="side-link admin-link"><Shield size={18} /> Admin panel</NavLink>
-    )} name={profile?.full_name} fab={<ChatLog />} onSignOut={async () => { await signOut(); nav('/'); }} />
+    )} name={profile?.full_name} fab={<ChatLog />} onSignOut={async () => { await signOut(); nav('/'); }} /></>
   );
 }
 
@@ -35,7 +36,7 @@ export function AdminLayout() {
     { to: '/admin/recipes', label: 'Recipes', icon: ChefHat },
     { to: '/admin/plans', label: isSuper ? 'Plans & library' : 'Library', icon: Layers },
   ];
-  return <Shell items={items} subtitle={isSuper ? 'Super admin' : 'Coach'} super={isSuper} admin name={profile?.full_name} onSignOut={async () => { await signOut(); nav('/'); }} />;
+  return <><TermsGate /><Shell items={items} subtitle={isSuper ? 'Super admin' : 'Coach'} super={isSuper} admin name={profile?.full_name} onSignOut={async () => { await signOut(); nav('/'); }} /></>;
 }
 
 const TIPS = [
