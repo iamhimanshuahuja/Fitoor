@@ -19,7 +19,10 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#12261B"
-      }
+      },
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -32,7 +35,8 @@
         "expo-image-picker",
         {
           "photosPermission": "Fitoor uses your photos so you can log meals, scale readings and lab reports.",
-          "cameraPermission": "Fitoor uses the camera so you can snap your meal, your scale or a gym machine."
+          "cameraPermission": "Fitoor uses the camera so you can snap your meal, your scale or a gym machine.",
+          "microphonePermission": false
         }
       ],
       [
@@ -50,11 +54,18 @@
       "typedRoutes": false
     },
     "extra": {
-      "router": {},
-      "eas": {}
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "36b88a53-7d74-4498-b9b8-e8fc9f3512a1"
+      }
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    }
+    },
+    "owner": "mr.himanshuahuja"
   }
 }
