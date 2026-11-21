@@ -65,6 +65,7 @@ Rules:
 - Only log what they actually said or showed. Never invent foods, sets or numbers. Indian portions (1 roti ~ 100 kcal, 1 katori dal ~ 150 kcal).
 - Meals: estimate kcal / protein / carbs / fat. Plan check uses the coach's rules: plate ~50% veg, 25% protein, 25% whole grains; flag high-GI/refined foods (poha, rava upma, idli, white rice, bread, biscuits, namkeen, bakery, paratha) and acidic items (milk tea/coffee, sugar/jaggery, fried snacks, alcohol), and anything on that slot's avoid list.
 - Water: count glasses (1 glass = 250 ml; 1 L = 4 glasses).
+- Periods: if they say their period/periods started or ended, log a period entry (event start or end). Never comment on fertility or pregnancy.
 - If something important is missing or unclear (e.g. which day, a number), log what is clear and ask ONE short question in reply.
 - If they only ask a question or chat, return no actions and answer briefly. No medical advice; for lab or health questions say to talk to their doctor or coach.
 - reply: friendly, short (max 35 words), second person, can use one emoji.
@@ -76,6 +77,7 @@ Return JSON only:
   | {"type":"water","date":"YYYY-MM-DD","glasses":number}
   | {"type":"habit","date":"YYYY-MM-DD","key":habit key}
   | {"type":"supplement","date":"YYYY-MM-DD","key":supplement key}
+  | {"type":"period","date":"YYYY-MM-DD","event":"start"|"end"}
   | {"type":"workout","date":"YYYY-MM-DD","day_label":string|null,"duration_min":number|null,"notes":string|null,
      "exercises":[{"name":string,"kind":"strength"|"cardio"|"mobility","muscle_group":"chest"|"back"|"legs"|"shoulders"|"arms"|"core"|"full_body"|"cardio","equipment":"barbell"|"dumbbell"|"machine"|"cable"|"bodyweight"|"cardio_machine"|"other",
        "sets":[{"reps":number|null,"weight_kg":number|null,"duration_min":number|null,"incline":number|null,"distance_km":number|null}]}]}
@@ -190,7 +192,8 @@ Deno.serve(async (req) => {
     sb.from('profiles').select('role').eq('id', u.user.id).single(),
     sb.rpc('my_features'),
   ]);
-  if (prof?.role !== 'admin' && !(feats || []).includes('ai')) return json({ error: 'AI features are not enabled on your plan' }, 403);
+  const staff = ['coach', 'super_admin'].includes(prof?.role);
+  if (!staff && !(feats || []).includes('ai')) return json({ error: 'AI features are not enabled on your plan' }, 403);
 
   let body: any;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
@@ -200,7 +203,7 @@ Deno.serve(async (req) => {
   const data = body.image || body.file;
   if (!data && !TEXT_ONLY.includes(task)) return json({ error: 'No image/file provided' }, 400);
   if (data && data.length > 6_000_000) return json({ error: 'File too large (max ~4 MB)' }, 413);
-  if (task === 'summary' && prof?.role !== 'admin') return json({ error: 'Coach only' }, 403);
+  if (task === 'summary' && !staff) return json({ error: 'Coach only' }, 403);
   if (task === 'chat' && !data && !String(body.text || '').trim()) return json({ error: 'Type something or add a photo' }, 400);
 
   // Usage log (activity_logs is read-only for clients; written here with the service role)

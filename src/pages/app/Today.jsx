@@ -1,3 +1,5 @@
+import { TodayWomensHealth } from '../../components/WomensHealth';
+import { isFemale } from '../../lib/cycle';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -76,6 +78,7 @@ export default function Today() {
         <DateStrip value={date} onChange={(d) => setSp(d === today() ? {} : { date: d })} />
       </div>
       <JuiceReminder userId={user.id} />
+      {profile && isFemale(profile) && <TodayWomensHealth profile={profile} />}
       <CoachNoteBanner userId={user.id} onOpen={(d) => setSp(d === today() ? {} : { date: d })} />
       <DayView userId={user.id} date={date} mode="user" />
     </div>

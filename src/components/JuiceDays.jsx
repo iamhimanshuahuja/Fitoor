@@ -1,3 +1,4 @@
+import { needsCare } from '../lib/cycle';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarPlus, Trash2, Check, X, CalendarClock } from 'lucide-react';
@@ -123,6 +124,7 @@ export function CoachJuiceDays({ userId, profile, updateProfile, egfr }) {
   const [err, setErr] = useState('');
   const add = async (e) => {
     e.preventDefault(); setErr('');
+    if (needsCare(profile) && !confirm(`${profile.full_name} is marked as ${profile.pregnancy === 'pregnant' ? 'pregnant' : 'breastfeeding'}. Juice-only days aren’t usually advised without their doctor’s OK.\n\nBook it anyway?`)) return;
     const { error } = await supabase.from('juice_days').insert({ user_id: userId, day, note: note.trim() || null });
     if (error) return setErr(error.code === '23505' ? 'That date is already booked.' : error.message);
     setNote(''); reload();
@@ -153,6 +155,7 @@ export function CoachJuiceDays({ userId, profile, updateProfile, egfr }) {
         <button className="btn btn-pop btn-sm"><CalendarPlus size={15} /> Book juice day</button>
       </form>
       {inMonth >= 2 && <p className="small warn-text">Already {inMonth} juice day{inMonth > 1 ? 's' : ''} in {fmt(month + '-01', { month: 'long' })}.</p>}
+      {needsCare(profile) && <p className="small warn-text">🤰 Marked as {profile.pregnancy === 'pregnant' ? 'pregnant' : 'breastfeeding'}: check with their doctor before any juice-only day.</p>}
       {!profile.juice_group && <p className="small warn-text">Set the juice amounts so the client sees how much to drink.</p>}
       {err && <p className="error small">{err}</p>}
 

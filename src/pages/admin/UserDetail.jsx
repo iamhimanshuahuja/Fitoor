@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { FEATURES } from '../../lib/constants';
-import { addDays, today, fmtLong } from '../../lib/dates';
+import { addDays, today, fmt, fmtLong } from '../../lib/dates';
 import { Card, Spinner, Tabs, Toggle, DateStrip, Stat, Empty, useToast } from '../../components/ui';
 import DayView from '../../components/DayView';
 import CalendarView from '../../components/CalendarView';
@@ -14,6 +14,10 @@ import AiWeeklySummary from '../../components/AiWeeklySummary';
 import ProgressDashboard from '../../components/ProgressDashboard';
 import { CoachJuiceDays } from '../../components/JuiceDays';
 import { LoginHistory, FeatureActivity } from '../../components/ActivityLog';
+import { useAuth } from '../../lib/auth';
+import { CoachWomensHealth } from '../../components/WomensHealth';
+import { isFemale, needsCare } from '../../lib/cycle';
+import { useCoaches } from '../../lib/coaches';
 import { labKey } from '../../lib/labNames';
 import { WeightPanel } from '../app/Weight';
 import { GymPanel } from '../app/Gym';
@@ -21,6 +25,7 @@ import { LabCompare, LabUploader } from '../app/Labs';
 
 export default function UserDetail() {
   const { id } = useParams();
+  const { isSuper } = useAuth();
   const [sp, setSp] = useSearchParams();
   const tab = sp.get('tab') || 'overview';
   const date = sp.get('date') || today();
@@ -86,12 +91,13 @@ export default function UserDetail() {
       <div className="page-head user-head">
         <div>
           <h1>{profile.full_name}</h1>
+        {needsCare(profile) && <span className="tag bad">🤰 {profile.pregnancy === 'pregnant' ? 'Pregnant' : 'Breastfeeding'}</span>}{profile.pcos === 'yes' && <span className="tag warn">PCOS/PCOD</span>}
           <p className="muted small">{profile.email}{profile.phone ? ` · ${profile.phone}` : ''} · {plan?.name || 'No plan'}{profile.goal ? ` · Goal: ${profile.goal}` : ''}</p>
         </div>
       </div>
       <Tabs tabs={tabs} value={tab} onChange={(t) => go(t)} />
 
-      {tab === 'overview' && <Overview userId={id} profile={profile} onOpenDay={(d) => go('day', { date: d })} />}
+      {tab === 'overview' && <Overview userId={id} profile={profile} onOpenDay={(d) => go('day', { date: d })} onProfileSaved={load} />}
       {tab === 'calendar' && <CalendarView userId={id} mode="admin" features={effective} />}
       {tab === 'day' && (
         <>
@@ -114,15 +120,20 @@ export default function UserDetail() {
       </>)}
       {tab === 'access' && (
         <div className="grid-2">
+          {isSuper && <CoachAssign userId={id} profile={profile} updateProfile={updateProfile} />}
           <Card title="Plan">
-            <label>Assigned plan
-              <select value={profile.plan_id || ''} onChange={(e) => updateProfile({ plan_id: e.target.value || null })}>
-                <option value="">No plan</option>
-                {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </label>
-            <Toggle label="Account active" hint="Paused users can't open the app" checked={profile.active} onChange={(v) => updateProfile({ active: v })} />
-            <Toggle label="Admin / coach" hint="Can see all clients" checked={profile.role === 'admin'} onChange={(v) => confirm(v ? 'Make this person an admin?' : 'Remove admin rights?') && updateProfile({ role: v ? 'admin' : 'user' })} />
+            {isSuper ? (<>
+              <label>Assigned plan
+                <select value={profile.plan_id || ''} onChange={(e) => updateProfile({ plan_id: e.target.value || null })}>
+                  <option value="">No plan</option>
+                  {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </label>
+              <Toggle label="Account active" hint="Paused users can't open the app" checked={profile.active} onChange={(v) => updateProfile({ active: v })} />
+            </>) : (<>
+              <p><b>{plans.find((p) => p.id === profile.plan_id)?.name || 'No plan'}</b>{profile.active === false && <span className="tag bad">paused</span>}</p>
+              <p className="small muted">Plans and feature switches are managed by the super admin.</p>
+            </>)}
           </Card>
           <CoachJuiceDays userId={id} profile={profile} updateProfile={updateProfile} egfr={egfr} />
           <Card title="Features for this client">
@@ -130,7 +141,7 @@ export default function UserDetail() {
             {FEATURES.map((f) => {
               const o = overrides.find((x) => x.feature === f.key);
               return (
-                <Toggle key={f.key} label={<>{f.label} {o && <span className="tag">custom</span>}</>} hint={f.hint}
+                <Toggle key={f.key} label={<>{f.label} {o && <span className="tag">custom</span>}</>} hint={f.hint} disabled={!isSuper}
                   checked={effective.includes(f.key)} onChange={(v) => setFeature(f.key, v)} />
               );
             })}
@@ -138,12 +149,47 @@ export default function UserDetail() {
         </div>
       )}
       {tab === 'notes' && <Card title="All notes"><Comments userId={id} /></Card>}
-      {tab === 'activity' && <><FeatureActivity userId={id} /><LoginHistory userId={id} /></>}
+      {tab === 'activity' && <><FeatureActivity userId={id} />{isSuper && <LoginHistory userId={id} />}</>}
     </div>
   );
 }
 
-function Overview({ userId, profile, onOpenDay }) {
+/** Super admin: assign / change / remove this client's coach, with the assignment history. */
+function CoachAssign({ userId, profile, updateProfile }) {
+  const [coaches] = useCoaches(true);
+  const [hist, setHist] = useState([]);
+  const loadHist = () => supabase.from('coach_assignments').select('*').eq('user_id', userId).order('started_at', { ascending: false }).then(({ data }) => setHist(data || []));
+  useEffect(() => { loadHist(); }, [userId, profile.coach_id]);
+  const name = (cid) => coaches.find((c) => c.id === cid)?.full_name || 'Removed coach';
+  const change = async (cid) => {
+    const to = cid ? name(cid) : 'no coach';
+    const msg = profile.coach_id
+      ? `Move ${profile.full_name} to ${to}?\n\nThe current coach loses access right away. ${cid ? 'The new coach sees the full history, but not who the previous coach was.' : ''}`
+      : `Assign ${profile.full_name} to ${to}?`;
+    if (!confirm(msg)) return;
+    await updateProfile({ coach_id: cid || null });
+  };
+  return (
+    <Card title="Coach">
+      <label>Assigned coach
+        <select value={profile.coach_id || ''} onChange={(e) => change(e.target.value)}>
+          <option value="">— Waiting for a coach —</option>
+          {coaches.map((c) => <option key={c.id} value={c.id}>{c.full_name}{c.role === 'super_admin' ? ' (super admin)' : ''}</option>)}
+        </select>
+      </label>
+      {hist.length > 0 && (
+        <ul className="coach-hist">
+          {hist.map((h) => (
+            <li key={h.id}><b>{name(h.coach_id)}</b> <span className="muted small">{fmt(h.started_at.slice(0, 10))} → {h.ended_at ? fmt(h.ended_at.slice(0, 10)) : 'now'}</span></li>
+          ))}
+        </ul>
+      )}
+      <p className="small muted">Only you see coach names and this history.</p>
+    </Card>
+  );
+}
+
+function Overview({ userId, profile, onOpenDay, onProfileSaved }) {
   const [d, setD] = useState(null);
   useEffect(() => {
     const since = addDays(today(), -29);
@@ -174,6 +220,7 @@ function Overview({ userId, profile, onOpenDay }) {
   return (
     <>
       <ProgressDashboard userId={userId} profile={profile} />
+      {isFemale(profile) && <CoachWomensHealth profile={profile} onSaved={onProfileSaved} />}
       <AiWeeklySummary userId={userId} profile={profile} />
       <div className="stats">
         <Stat label="Days logged (30d)" value={`${loggedDays}/30`} tone={loggedDays >= 20 ? 'good' : 'warn'} />

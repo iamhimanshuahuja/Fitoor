@@ -94,14 +94,14 @@ export function Tabs({ tabs, value, onChange }) {
   );
 }
 
-export function Toggle({ checked, onChange, label, hint }) {
+export function Toggle({ checked, onChange, label, hint, disabled }) {
   return (
     <label className="toggle-row">
       <span>
         <b>{label}</b>
         {hint && <small>{hint}</small>}
       </span>
-      <input type="checkbox" className="switch" checked={!!checked} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" className="switch" checked={!!checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
     </label>
   );
 }

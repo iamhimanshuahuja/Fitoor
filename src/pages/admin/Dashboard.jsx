@@ -1,10 +1,12 @@
+import { useAuth } from '../../lib/auth';
+import { useCoaches } from '../../lib/coaches';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { addDays, today, fmt, daysAgo, fmtTime } from '../../lib/dates';
 import { slotLabel } from '../../lib/constants';
-import { Card, Stat, Empty, Spinner, SignedImg, Lightbox } from '../../components/ui';
+import { Card, Stat, Empty, Spinner, SignedImg, Lightbox, useToast } from '../../components/ui';
 import { DailyBars, COLORS } from '../../components/Charts';
 import { CoachJuiceOverview } from '../../components/JuiceDays';
 
@@ -19,7 +21,42 @@ export function attentionReasons(u) {
   return r;
 }
 
+/** Super admin: new signups and other clients without a coach, with a quick assign. */
+function WaitingForCoach({ users, onAssigned }) {
+  const [coaches] = useCoaches(true);
+  const [pick, setPick] = useState({});
+  const [toast, show] = useToast();
+  const waiting = users.filter((u) => !u.coach_id).sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  if (!waiting.length) return null;
+  const assign = async (u) => {
+    const cid = pick[u.user_id];
+    if (!cid) return show('Pick a coach first', 'bad');
+    const { error } = await supabase.from('profiles').update({ coach_id: cid }).eq('id', u.user_id);
+    if (error) return show(error.message, 'bad');
+    show(`${u.full_name} → ${coaches.find((c) => c.id === cid)?.full_name}`); onAssigned(u.user_id, cid);
+  };
+  return (
+    <Card title={`🆕 Waiting for a coach · ${waiting.length}`}>
+      {toast}
+      <ul className="waiting-list">
+        {waiting.map((u) => (
+          <li key={u.user_id}>
+            <div className="grow"><Link to={`/admin/users/${u.user_id}`}><b>{u.full_name}</b></Link>
+              <div className="muted small">{u.email}{u.phone ? ` · ${u.phone}` : ''} · joined {u.created_at ? fmt(u.created_at.slice(0, 10)) : '—'}</div></div>
+            <select value={pick[u.user_id] || ''} onChange={(e) => setPick({ ...pick, [u.user_id]: e.target.value })} aria-label={`Coach for ${u.full_name}`}>
+              <option value="">Choose coach…</option>
+              {coaches.map((c) => <option key={c.id} value={c.id}>{c.full_name}</option>)}
+            </select>
+            <button className="btn btn-pop btn-sm" onClick={() => assign(u)}>Assign</button>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 export default function Dashboard() {
+  const { isSuper } = useAuth();
   const [users, setUsers] = useState(null);
   const [daily, setDaily] = useState([]);
   const [photos, setPhotos] = useState([]);
@@ -59,6 +96,7 @@ export default function Dashboard() {
   return (
     <div className="page">
       <div className="page-head"><h1>Overview</h1></div>
+      {isSuper && <WaitingForCoach users={users} onAssigned={(uid, cid) => setUsers(users.map((u) => (u.user_id === uid ? { ...u, coach_id: cid } : u)))} />}
       <CoachJuiceOverview />
       <div className="stats">
         <Stat label="Clients" value={users.length} sub={`${users.filter((u) => u.active).length} active`} />

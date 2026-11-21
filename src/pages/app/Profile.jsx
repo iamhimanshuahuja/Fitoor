@@ -1,3 +1,5 @@
+import { WomensHealthForm, PeriodTracker } from '../../components/WomensHealth';
+import { isFemale } from '../../lib/cycle';
 import { LoginHistory } from '../../components/ActivityLog';
 import { useEffect, useState } from 'react';
 import { Smartphone, Share } from 'lucide-react';
@@ -6,12 +8,30 @@ import { useAuth } from '../../lib/auth';
 import { FEATURES } from '../../lib/constants';
 import { Card, Spinner, useToast } from '../../components/ui';
 
+/** Shows the client's current coach (RLS lets a client read only their own coach's profile). */
+function MyCoach({ coachId }) {
+  const [c, setC] = useState(undefined);
+  useEffect(() => {
+    if (!coachId) { setC(null); return; }
+    supabase.from('profiles').select('full_name').eq('id', coachId).maybeSingle().then(({ data }) => setC(data || null));
+  }, [coachId]);
+  if (c === undefined) return null;
+  return (
+    <Card title="My coach">
+      {c ? (
+        <div className="my-coach"><span className="avatar" aria-hidden>{c.full_name?.[0] || 'C'}</span><div><b>{c.full_name}</b><div className="small muted">Sees your logs, plan and reports, and replies in notes.</div></div></div>
+      ) : <p className="small muted">You don’t have a coach yet. We’ll match you with one soon.</p>}
+    </Card>
+  );
+}
+
 export default function Profile() {
   const { profile, refresh, features, isAdmin } = useAuth();
   const [f, setF] = useState(null);
   const [busy, setBusy] = useState(false);
   const [toast, show] = useToast();
   useEffect(() => { if (profile) setF(profile); }, [profile]);
+  useEffect(() => { if (f && location.hash === '#womens-health') setTimeout(() => document.getElementById('womens-health')?.scrollIntoView({ behavior: 'smooth' }), 200); }, [!!f]);
   if (!f) return <div className="center-pad"><button className="btn btn-primary" onClick={refresh}>Reload profile</button></div>;
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
@@ -60,8 +80,15 @@ export default function Profile() {
           <button className="btn btn-primary" disabled={busy}>{busy ? <Spinner /> : 'Save'}</button>
         </form>
       </Card>
+      <MyCoach coachId={profile.coach_id} />
+      {isFemale(f) && (
+        <div id="womens-health">
+          <WomensHealthForm profile={profile} onSaved={refresh} />
+          {profile.track_cycle && <PeriodTracker userId={profile.id} />}
+        </div>
+      )}
       <Card title="My plan">
-        <p><b>{profile.plans?.name || 'No plan yet'}</b>{isAdmin && ' · Admin'}</p>
+        <p><b>{profile.plans?.name || 'No plan yet'}</b>{isAdmin && ' · Staff'}</p>
         <div className="chips-row">
           {FEATURES.map((x) => <span key={x.key} className={`chip ${features.includes(x.key) ? 'on ok' : 'off'}`}>{x.label}</span>)}
         </div>

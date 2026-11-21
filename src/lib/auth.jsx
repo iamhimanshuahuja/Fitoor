@@ -47,8 +47,11 @@ export function AuthProvider({ children }) {
   const value = {
     session, profile, features, loading, profileError,
     user: session?.user || null,
-    isAdmin: profile?.role === 'admin',
-    has: (f) => profile?.role === 'admin' || features.includes(f),
+    role: profile?.role || null,
+    isSuper: profile?.role === 'super_admin',                              // sees everything, manages coaches & plans
+    isCoach: profile?.role === 'coach',                                    // sees only assigned clients
+    isAdmin: profile?.role === 'coach' || profile?.role === 'super_admin', // any staff → coach panel (/admin)
+    has: (f) => profile?.role === 'coach' || profile?.role === 'super_admin' || features.includes(f),
     refresh: () => loadProfile(session),
     signOut: async () => { await trackLogin('sign_out'); clearSessionMark(); return supabase.auth.signOut(); },
   };

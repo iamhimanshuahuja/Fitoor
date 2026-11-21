@@ -1,3 +1,4 @@
+import { useAuth } from '../../lib/auth';
 import { useEffect, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -7,13 +8,15 @@ import DietPlanEditor from '../../components/DietPlanEditor';
 import { useExercises } from '../app/Gym';
 
 export default function Plans() {
-  const [tab, setTab] = useState('plans');
+  const { isSuper } = useAuth();
+  const [tab, setTab] = useState(isSuper ? 'plans' : 'templates');
+  const tabs = [...(isSuper ? [{ key: 'plans', label: 'Subscription plans' }] : []), { key: 'templates', label: 'Diet templates' }, { key: 'exercises', label: 'Exercise library' }];
   return (
     <div className="page">
-      <div className="page-head"><h1>Plans & library</h1>
-        <Tabs tabs={[{ key: 'plans', label: 'Subscription plans' }, { key: 'templates', label: 'Diet templates' }, { key: 'exercises', label: 'Exercise library' }]} value={tab} onChange={setTab} />
+      <div className="page-head"><h1>{isSuper ? 'Plans & library' : 'Library'}</h1>
+        <Tabs tabs={tabs} value={tab} onChange={setTab} />
       </div>
-      {tab === 'plans' && <PlanMatrix />}
+      {tab === 'plans' && isSuper && <PlanMatrix />}
       {tab === 'templates' && <Templates />}
       {tab === 'exercises' && <ExerciseLibrary />}
     </div>
@@ -64,19 +67,21 @@ function PlanMatrix() {
 }
 
 function Templates() {
+  const { user, isSuper } = useAuth();
   const [list, setList] = useState(null);
   const [open, setOpen] = useState(null);
-  const load = () => supabase.from('diet_plans').select('id, title, updated_at').eq('is_template', true).order('title').then(({ data }) => setList(data || []));
+  const load = () => supabase.from('diet_plans').select('id, title, updated_at, created_by').eq('is_template', true).order('title').then(({ data }) => setList(data || []));
   useEffect(() => { load(); }, []);
   if (!list) return <div className="center-pad"><Spinner /></div>;
   if (open) return <><button className="btn btn-ghost" onClick={() => { setOpen(null); load(); }}>← All templates</button><DietPlanEditor planId={open === 'new' ? null : open} /></>;
   return (
-    <Card title="Diet plan templates" action={<button className="btn btn-soft btn-sm" onClick={() => setOpen('new')}><Plus size={16} /> New template</button>}>
+    <Card title={isSuper ? 'Diet plan templates · yours are shared with every coach' : 'Diet plan templates · shared ones come from the super admin; yours are private'} action={<button className="btn btn-soft btn-sm" onClick={() => setOpen('new')}><Plus size={16} /> New template</button>}>
       <ul className="list">
         {list.map((t) => (
           <li key={t.id}>
             <button className="link" onClick={() => setOpen(t.id)}>{t.title}</button>
-            <button className="icon-btn sm" onClick={async () => { if (confirm('Delete template?')) { await supabase.from('diet_plans').delete().eq('id', t.id); load(); } }}><Trash2 size={14} /></button>
+            <span className="tag">{t.created_by === user.id ? (isSuper ? 'Shared with all coaches' : 'Private · mine') : 'Shared'}</span>
+            {(isSuper || t.created_by === user.id) && <button className="icon-btn sm" onClick={async () => { if (confirm('Delete template?')) { await supabase.from('diet_plans').delete().eq('id', t.id); load(); } }}><Trash2 size={14} /></button>}
           </li>
         ))}
       </ul>

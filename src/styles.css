@@ -1063,3 +1063,36 @@ body.chat-open { overflow: hidden; }
 .timeline li b { font-weight: 600; }
 .tl-icon { font-size: 1.05rem; }
 @media (max-width: 600px) { .usage-bars li { grid-template-columns: 110px 1fr 32px; } .timeline li { grid-template-columns: 24px 1fr; } .timeline time { grid-column: 2; } }
+
+/* ===================== Coaches ===================== */
+.coach-hint { margin: -4px 0 4px; opacity: .8; }
+.coach-hint.ok { color: var(--deep); font-weight: 700; opacity: 1; }
+.coach-hint.bad { color: #9A5B00; opacity: 1; }
+input.locked { background: #EEF6E8; font-weight: 700; letter-spacing: .05em; }
+.coach-code { font-weight: 800; letter-spacing: .06em; background: var(--lime); border: 1.5px solid var(--ink); border-radius: 8px; padding: 2px 8px; }
+.coach-hist { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; font-size: .9rem; }
+.waiting-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.waiting-list li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line, #d7e2d0); }
+.waiting-list select { max-width: 200px; }
+.my-coach { display: flex; align-items: center; gap: 10px; }
+.my-coach .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--lav); border: 2px solid var(--ink); display: grid; place-items: center; font: 800 1rem var(--display); }
+
+/* ===================== Women's health ===================== */
+.wh-card .form { gap: 10px; }
+.wh-care { background: #FFE3E7; border: 1.5px solid var(--ink); border-radius: 12px; padding: 8px 12px; font-size: .9rem; font-weight: 600; margin: 4px 0; }
+.wh-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.wh-stats.compact { grid-template-columns: repeat(3, 1fr); }
+.wh-stat { border: 2px solid var(--ink); border-radius: 14px; padding: 8px 10px; display: flex; flex-direction: column; box-shadow: 2px 2px 0 var(--ink); }
+.wh-stat b { font: 800 1.15rem/1.1 var(--display); }
+.wh-stat span { font-size: .72rem; opacity: .8; }
+.wh-stat.lav { background: var(--lav); } .wh-stat.sky { background: var(--sky); } .wh-stat.haldi { background: var(--haldi); }
+.wh-stat.lime { background: var(--lime); } .wh-stat.chilli { background: #FFB3BF; }
+.wh-form { display: grid; gap: 10px; margin-top: 12px; padding: 12px; border: 1.5px solid var(--ink); border-radius: 14px; background: var(--paper-bg, #EEF6E8); }
+.wh-history { list-style: none; padding: 0; margin: 12px 0 6px; display: grid; gap: 6px; }
+.wh-history li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line, #d7e2d0); }
+.wh-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.wh-prompt, .wh-strip { display: flex; gap: 10px; align-items: center; text-decoration: none; color: var(--ink); border: 2px solid var(--ink); border-radius: 16px; padding: 10px 14px; margin-bottom: 14px; background: #FFE3EE; }
+.wh-prompt span { display: flex; flex-direction: column; } .wh-prompt small { opacity: .75; }
+.wh-strip { display: inline-flex; border-radius: 999px; padding: 6px 14px; font-size: .9rem; background: #FFE3EE; }
+.cal-tag.period { background: #FFD0DC; border-radius: 6px; padding: 0 3px; }
+@media (max-width: 600px) { .wh-stats { grid-template-columns: repeat(2, 1fr); } }

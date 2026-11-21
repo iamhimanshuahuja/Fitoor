@@ -43,7 +43,7 @@ export function LoginHistory({ userId, limit = 50, title = 'Sign-ins', compact =
 const AI_NAME = { meal: 'AI meal check', scale: 'AI scale reading', machine: 'AI machine finder', lab: 'AI lab report reader', chat: 'Log by chat', summary: 'AI weekly check-in' };
 const FEATURE = (a) => (a.startsWith('ai_') ? AI_NAME[a.slice(3)] || 'AI' : {
   meal_logs: 'Meals', weight_logs: 'Weight', habit_logs: 'Habits', workouts: 'Gym', lab_reports: 'Lab reports',
-  comments: 'Notes', juice_days: 'Juice days', diet_plans: 'Diet plan',
+  comments: 'Notes', juice_days: 'Juice days', diet_plans: 'Diet plan', period_logs: 'Period tracker',
 }[a.replace(/_(insert|update|delete)$/, '')] || a);
 
 function describe(r) {
@@ -68,6 +68,7 @@ function describe(r) {
       if (op === 'insert') return { icon: '🧃', text: `Juice day booked${date}` };
       if (op === 'delete') return { icon: '🧃', text: 'Juice day removed' };
       return { icon: '🧃', text: d.request === 'pending' ? 'Asked to move juice day' : d.request === 'approved' ? 'Juice day moved' : d.request === 'declined' ? 'Juice day kept' : `Juice day ${d.status || 'updated'}` };
+    case 'period_logs': return { icon: '🩸', text: op === 'delete' ? 'Deleted a period entry' : op === 'update' ? 'Updated a period entry' : `Logged a period${date}` };
     case 'diet_plans': return { icon: '📋', text: op === 'insert' ? 'New diet plan' : 'Diet plan updated' };
     default: return { icon: '•', text: a };
   }

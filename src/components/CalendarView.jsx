@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { HABITS, SLOTS, slotLabel } from '../lib/constants';
-import { today, toISO, fmtLong } from '../lib/dates';
+import { today, toISO, fmtLong, addDays } from '../lib/dates';
 import { Spinner, Stat } from './ui';
 import DayView from './DayView';
 
@@ -14,6 +14,7 @@ const LAYERS = [
   { key: 'weight', label: '⚖️ Weight' },
   { key: 'habits', label: '✅ Habits' },
   { key: 'juices', label: '🧃 Juice days' },
+  { key: 'period', label: '🩸 Period' },
   { key: 'notes', label: '💬 Notes' },
 ];
 
@@ -35,7 +36,7 @@ export default function CalendarView({ userId, mode = 'user', features }) {
     setData(null);
     const from = month, to = monthEnd(month);
     const q = (t, cols, dateCol = 'log_date') => supabase.from(t).select(cols).eq('user_id', userId).gte(dateCol, from).lte(dateCol, to);
-    const [m, w, wo, h, c, l, jd] = await Promise.all([
+    const [m, w, wo, h, c, l, jd, pl] = await Promise.all([
       q('meal_logs', 'log_date, slot, followed, kcal, protein_g, description'),
       q('weight_logs', 'log_date, weight_kg'),
       q('workouts', 'log_date, day_label, duration_min, workout_sets(id)'),
@@ -43,6 +44,7 @@ export default function CalendarView({ userId, mode = 'user', features }) {
       q('comments', 'log_date, body'),
       q('lab_reports', 'report_date, lab_name', 'report_date'),
       q('juice_days', 'day, status, request_status', 'day'),
+      supabase.from('period_logs').select('start_date, end_date').eq('user_id', userId).lte('start_date', to).gte('start_date', addDays(from, -10)),
     ]);
     const days = {};
     const day = (d) => (days[d] ||= { meals: [], workouts: [], notes: 0, labs: 0 });
@@ -59,6 +61,10 @@ export default function CalendarView({ userId, mode = 'user', features }) {
     (c.data || []).forEach((x) => { if (x.log_date) day(x.log_date).notes++; });
     (l.data || []).forEach((x) => { day(x.report_date).labs++; });
     (jd.data || []).forEach((x) => { day(x.day).juiceDay = x; });
+    (pl.data || []).forEach((x) => {
+      const end = x.end_date || x.start_date;
+      for (let d = x.start_date; d <= end; d = addDays(d, 1)) if (d >= from && d <= to) day(d).period = d === x.start_date ? 'start' : 'on';
+    });
     setData(days);
   }, [userId, month]);
   useEffect(() => { load(); }, [load]);
@@ -109,7 +115,7 @@ export default function CalendarView({ userId, mode = 'user', features }) {
       )}
 
       <div className="cal-layers" role="group" aria-label="Show on calendar">
-        {LAYERS.filter((l) => (l.key === 'gym' ? has('gym') : l.key === 'weight' ? has('weight') : l.key === 'habits' ? has('habits') : true)).map((l) => (
+        {LAYERS.filter((l) => (l.key === 'gym' ? has('gym') : l.key === 'weight' ? has('weight') : l.key === 'habits' ? has('habits') : l.key === 'period' ? Object.values(data || {}).some((d) => d.period) : true)).map((l) => (
           <button key={l.key} className={`chip ${on(l.key) ? 'on ok' : ''}`} aria-pressed={on(l.key)}
             onClick={() => setLayers(on(l.key) ? layers.filter((x) => x !== l.key) : [...layers, l.key])}>{l.label}</button>
         ))}
@@ -144,6 +150,7 @@ export default function CalendarView({ userId, mode = 'user', features }) {
                     {on('weight') && x.weight && <span className="cal-tag wt">⚖️<em>{x.weight}</em></span>}
                     {on('habits') && x.habits && <span className="cal-tag hab">✅<em>{x.habits.done}/{x.habits.total}</em></span>}
                     {on('juices') && x.juiceDay && <span className={`cal-tag juice ${x.juiceDay.status}`}>🧃<em>{x.juiceDay.status === 'done' ? 'Done' : x.juiceDay.status === 'missed' ? 'Missed' : x.juices ? `${x.juices}/6` : 'Juice day'}</em></span>}
+                    {on('period') && x.period && <span className="cal-tag period">🩸<em>{x.period === 'start' ? 'Started' : ''}</em></span>}
                     {on('notes') && x.notes > 0 && <span className="cal-tag note">💬<em>{x.notes}</em></span>}
                     {x.labs > 0 && <span className="cal-tag lab">🧪<em>Report</em></span>}
                     {on('meals') && mealsOff > 0 && <span className="cal-off-dot" title={`${mealsOff} off plan`} />}

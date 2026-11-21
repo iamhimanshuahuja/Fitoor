@@ -25,14 +25,15 @@ export function AppLayout() {
 }
 
 export function AdminLayout() {
-  const { signOut, profile } = useAuth();
+  const { signOut, profile, isSuper } = useAuth();
   const nav = useNavigate();
   const items = [
     { to: '/admin', label: 'Overview', icon: LayoutDashboard, end: true },
-    { to: '/admin/users', label: 'Users', icon: Users },
-    { to: '/admin/plans', label: 'Plans & library', icon: Layers },
+    { to: '/admin/users', label: 'Clients', icon: Users },
+    ...(isSuper ? [{ to: '/admin/coaches', label: 'Coaches', icon: Shield }] : []),
+    { to: '/admin/plans', label: isSuper ? 'Plans & library' : 'Library', icon: Layers },
   ];
-  return <Shell items={items} subtitle="Admin" admin name={profile?.full_name} onSignOut={async () => { await signOut(); nav('/'); }} />;
+  return <Shell items={items} subtitle={isSuper ? 'Super admin' : 'Coach'} super={isSuper} admin name={profile?.full_name} onSignOut={async () => { await signOut(); nav('/'); }} />;
 }
 
 const TIPS = [
@@ -45,7 +46,7 @@ function greeting() {
 }
 
 /** Laptop/desktop header (≥900px): greeting row + menu tabs. Phones use the top bar + bottom nav instead. */
-function DeskBar({ items, extra, onSignOut, admin, name }) {
+function DeskBar({ items, extra, onSignOut, admin, name, isSuperRole }) {
   const first = (name || '').trim().split(/\s+/)[0];
   const now = new Date();
   const tip = TIPS[(now.getDate() + now.getMonth()) % TIPS.length];
@@ -56,7 +57,7 @@ function DeskBar({ items, extra, onSignOut, admin, name }) {
           <img src={admin ? '/logo-inline-dark.svg' : '/logo-inline.svg'} alt="Fitoor" height={34} />
           <div className="deskbar-greet">
             <b>{greeting()}{first ? `, ${first}` : ''} 👋</b>
-            <span>{now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })} · {admin ? 'Coach panel' : tip}</span>
+            <span>{now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })} · {admin ? (isSuperRole ? 'Super admin' : 'Coach panel') : tip}</span>
           </div>
           {!admin && <NavLink to="/app/profile" className="deskbar-btn" aria-label="My profile"><User size={18} /> Me</NavLink>}
           <button className="deskbar-btn ghost" onClick={onSignOut}><LogOut size={17} /> Sign out</button>
@@ -72,10 +73,10 @@ function DeskBar({ items, extra, onSignOut, admin, name }) {
   );
 }
 
-function Shell({ items, subtitle, extra, onSignOut, admin, fab, name }) {
+function Shell({ items, subtitle, extra, onSignOut, admin, fab, name, super: isSuperRole }) {
   return (
     <div className={`shell ${admin ? 'is-admin' : ''}`}>
-      <DeskBar items={items} extra={extra} onSignOut={onSignOut} admin={admin} name={name} />
+      <DeskBar items={items} extra={extra} onSignOut={onSignOut} admin={admin} name={name} isSuperRole={isSuperRole} />
       <aside className="sidebar">
         <div className="sidebar-brand"><Logo height={34} /></div>
         {subtitle && <div className="sidebar-sub">{subtitle}</div>}
@@ -89,7 +90,7 @@ function Shell({ items, subtitle, extra, onSignOut, admin, fab, name }) {
       </aside>
       <header className="topbar">
         <img src="/logo-inline.svg" alt="Fitoor" height={30} />
-        <span className="topbar-title">{admin ? 'Coach' : ''}</span>
+        <span className="topbar-title">{admin ? subtitle : ''}</span>
         {!admin && <NavLink to="/app/profile" className="icon-btn topbar-me" aria-label="My profile"><User size={19} /></NavLink>}
         <button className="icon-btn" onClick={onSignOut} aria-label="Sign out"><LogOut size={18} /></button>
       </header>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Sparkles, X, Send, Camera, ImagePlus, Check, Trash2 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { uploadMedia, toBase64 } from '../lib/media';
-import { askChat, saveAction, notifyDataChanged, ACTION_FEATURE } from '../lib/chatLog';
+import { askChat, saveAction, notifyDataChanged, actionAllowed } from '../lib/chatLog';
 import { SLOTS, HABITS, SUPPLEMENTS, DAY_LABELS, slotLabel } from '../lib/constants';
 import { today, addDays, fmt } from '../lib/dates';
 import { SignedImg, Spinner } from './ui';
@@ -13,7 +13,7 @@ const EXAMPLES = [
   '30 min incline walk at 8, then 3×12 leg press at 60 kg',
   'Drank 3 glasses of water and had my whey',
 ];
-const ICON = { meal: '🍛', weight: '⚖️', water: '💧', habit: '✅', supplement: '💊', workout: '🏋️' };
+const ICON = { meal: '🍛', weight: '⚖️', water: '💧', habit: '✅', supplement: '💊', workout: '🏋️', period: '🩸' };
 const dayName = (d) => (!d || d === today() ? 'Today' : d === addDays(today(), -1) ? 'Yesterday' : fmt(d));
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -57,7 +57,7 @@ export default function ChatLog() {
         setMsgs((m) => m.map((x) => (x.id === mine.id ? { ...x, photo: photoPath, localImg: undefined } : x)));
       }
       const r = await askChat({ userId: user.id, text: body, image, mime, history });
-      const allowed = (r.actions || []).filter((a) => ACTION_FEATURE[a.type] && has(ACTION_FEATURE[a.type]));
+      const allowed = (r.actions || []).filter((a) => actionAllowed(a, has));
       const dropped = (r.actions || []).length - allowed.length;
       setMsgs((m) => [...m, {
         id: uid(), role: 'ai', at: Date.now(), photoPath,
@@ -168,6 +168,8 @@ function ActionCard({ a, onChange, onSave, onSkip }) {
     body = <>{num('glasses', 'Glasses', '1')}</>;
   } else if (a.type === 'habit') {
     title = HABITS.find((h) => h.key === a.key)?.label || 'Habit';
+  } else if (a.type === 'period') {
+    title = a.event === 'end' ? 'Period ended' : 'Period started';
   } else if (a.type === 'supplement') {
     title = SUPPLEMENTS.find((s) => s.key === a.key)?.label || 'Supplement';
   } else if (a.type === 'workout') {

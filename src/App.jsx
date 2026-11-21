@@ -19,9 +19,10 @@ const Dashboard = lazy(() => import('./pages/admin/Dashboard'));
 const UsersPage = lazy(() => import('./pages/admin/Users'));
 const UserDetail = lazy(() => import('./pages/admin/UserDetail'));
 const Plans = lazy(() => import('./pages/admin/Plans'));
+const Coaches = lazy(() => import('./pages/admin/Coaches'));
 
-function RequireAuth({ children, admin, feature, clientOnly }) {
-  const { user, loading, isAdmin, has, profile, profileError, refresh } = useAuth();
+function RequireAuth({ children, admin, feature, clientOnly, superOnly }) {
+  const { user, loading, isAdmin, isSuper, has, profile, profileError, refresh } = useAuth();
   const loc = useLocation();
   if (loading) return <div className="center-screen"><Spinner size={28} /></div>;
   if (!user) return <Navigate to="/login" state={{ from: loc.pathname }} replace />;
@@ -38,6 +39,7 @@ function RequireAuth({ children, admin, feature, clientOnly }) {
   if (profile && profile.active === false && !isAdmin) return <div className="center-screen"><p>Your account is paused. Please contact your coach.</p></div>;
   if (admin && !isAdmin) return <Navigate to="/app" replace />;
   if (clientOnly && isAdmin) return <Navigate to="/admin" replace />;
+  if (superOnly && !isSuper) return <Navigate to="/admin" replace />;
   if (feature && !has(feature)) return <Navigate to="/app" replace />;
   return children;
 }
@@ -76,6 +78,7 @@ export default function App() {
         <Route path="users" element={<UsersPage />} />
         <Route path="users/:id" element={<UserDetail />} />
         <Route path="plans" element={<Plans />} />
+        <Route path="coaches" element={<RequireAuth superOnly><Coaches /></RequireAuth>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

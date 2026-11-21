@@ -54,8 +54,27 @@ export function Login() {
   );
 }
 
+/** Coach code: optional. From an invite link (?coach=CODE) it's prefilled and locked. Shows the coach's first name when valid. */
+function useCoachCode() {
+  const fromLink = (new URLSearchParams(location.search).get('coach') || '').trim().toUpperCase();
+  const [code, setCode] = useState(fromLink);
+  const [coach, setCoach] = useState({ state: 'idle', name: '' }); // idle | checking | ok | bad
+  useEffect(() => {
+    const c = code.trim();
+    if (c.length < 4) { setCoach({ state: 'idle', name: '' }); return; }
+    setCoach({ state: 'checking', name: '' });
+    const t = setTimeout(async () => {
+      const { data } = await supabase.rpc('coach_lookup', { code: c });
+      setCoach(data ? { state: 'ok', name: data } : { state: 'bad', name: '' });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [code]);
+  return { code, setCode, locked: !!fromLink, coach };
+}
+
 export function Signup() {
   const nav = useNavigate();
+  const cc = useCoachCode();
   const [f, setF] = useState({ full_name: '', phone: '', email: '', password: '' });
   const [err, setErr] = useState('');
   const [done, setDone] = useState(false);
@@ -67,7 +86,7 @@ export function Signup() {
     setRememberMe(true); markSessionLogged();
     const { data, error } = await supabase.auth.signUp({
       email: f.email, password: f.password,
-      options: { data: { full_name: f.full_name, phone: f.phone }, emailRedirectTo: `${location.origin}/app` },
+      options: { data: { full_name: f.full_name, phone: f.phone, coach_code: cc.coach.state === 'ok' ? cc.code.trim().toUpperCase() : '' }, emailRedirectTo: `${location.origin}/app` },
     });
     setBusy(false);
     if (error) { clearSessionMark(); return setErr(error.message); }
@@ -75,12 +94,22 @@ export function Signup() {
   };
   if (done) return <AuthFrame title="Check your email" sub={`We sent a confirmation link to ${f.email}. Open it on this phone to finish signing up.`} />;
   return (
-    <AuthFrame title="Create your account" sub="Your coach will assign your plan after you join.">
+    <AuthFrame title="Create your account" sub={cc.coach.state === 'ok' ? `You’re joining ${cc.coach.name}’s coaching on Fitoor.` : 'Your coach will set up your plan after you join.'}>
       <form onSubmit={submit} className="form">
         <label>Full name<input required value={f.full_name} onChange={set('full_name')} autoComplete="name" /></label>
         <label>Mobile (optional)<input type="tel" value={f.phone} onChange={set('phone')} autoComplete="tel" /></label>
         <label>Email<input type="email" required value={f.email} onChange={set('email')} autoComplete="email" /></label>
         <label>Password<input type="password" required minLength={8} value={f.password} onChange={set('password')} autoComplete="new-password" /></label>
+        <label>Coach code {cc.locked ? '' : <span className="muted">(optional)</span>}
+          <input value={cc.code} readOnly={cc.locked} onChange={(e) => cc.setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+            placeholder="e.g. RIYA42" maxLength={12} autoCapitalize="characters" className={cc.locked ? 'locked' : ''} aria-describedby="coach-code-hint" />
+        </label>
+        <p id="coach-code-hint" className={`small coach-hint ${cc.coach.state}`}>
+          {cc.coach.state === 'ok' ? `✓ Coach: ${cc.coach.name}${cc.locked ? ' (from your invite link)' : ''}`
+            : cc.coach.state === 'bad' ? 'We couldn’t find that code. You can still sign up and we’ll match you with a coach.'
+            : cc.coach.state === 'checking' ? 'Checking code…'
+            : 'Got a code from your coach? Enter it here. No code? Leave it empty and we’ll assign a coach.'}
+        </p>
         {err && <p className="error">{err}</p>}
         <button className="btn btn-primary btn-block" disabled={busy}>{busy ? <Spinner /> : 'Sign up'}</button>
         <p className="small muted auth-note">To keep your account safe we log each sign-in: time, IP address, approximate city and device. You can see yours under Me.</p>

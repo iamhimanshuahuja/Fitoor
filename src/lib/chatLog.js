@@ -4,7 +4,9 @@ import { today, addDays } from './dates';
 import { SLOTS, HABITS, SUPPLEMENTS, DAY_LABELS, MUSCLES, EQUIPMENT } from './constants';
 
 /** Which feature each action type needs. */
-export const ACTION_FEATURE = { meal: 'meals', weight: 'weight', water: 'habits', habit: 'habits', supplement: 'supplements', workout: 'gym' };
+export const ACTION_FEATURE = { meal: 'meals', weight: 'weight', water: 'habits', habit: 'habits', supplement: 'supplements', workout: 'gym', period: null };
+/** Can this user save this kind of entry? (null = no plan feature needed) */
+export const actionAllowed = (a, has) => a.type in ACTION_FEATURE && (!ACTION_FEATURE[a.type] || has(ACTION_FEATURE[a.type]));
 
 /** Ask the AI to turn a chat message (and optional photo) into log entries. Nothing is saved here. */
 export async function askChat({ userId, text, image, mime, history }) {
@@ -79,6 +81,19 @@ export async function saveAction(userId, a, photoPath) {
     if (!SUPPLEMENTS.some((s) => s.key === a.key)) throw new Error('Unknown supplement');
     await mergeHabits(userId, date, (x) => ({ ...x, supplements: { ...x.supplements, [a.key]: true } }));
     return 'Supplement ticked';
+  }
+  if (a.type === 'period') {
+    if (a.event === 'end') {
+      const { data: open } = await supabase.from('period_logs').select('id, start_date').eq('user_id', userId).is('end_date', null)
+        .lte('start_date', date).order('start_date', { ascending: false }).limit(1).maybeSingle();
+      if (!open) throw new Error('No open period to end. Log when it started first.');
+      const { error } = await supabase.from('period_logs').update({ end_date: date }).eq('id', open.id);
+      if (error) throw error;
+      return 'Period end saved';
+    }
+    const { error } = await supabase.from('period_logs').insert({ user_id: userId, start_date: date });
+    if (error) throw new Error(/duplicate|unique/i.test(error.message) ? 'Already logged for that day' : error.message);
+    return 'Period start saved';
   }
   if (a.type === 'workout') {
     const exs = (a.exercises || []).filter((e) => e.name);

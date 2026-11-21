@@ -5,6 +5,17 @@ import { useAuth } from '../lib/auth';
 import { fmt, fmtTime } from '../lib/dates';
 import { Empty } from './ui';
 
+/**
+ * Who wrote a note. Coaches only see the name of coaches they're allowed to see (themselves; clients see their
+ * current coach; the super admin sees everyone). Notes from a previous coach show as "Previous coach" — the name is hidden.
+ */
+function authorLabel(c, me) {
+  if (c.author_id === c.user_id) return c.author_id === me ? 'You' : c.author?.full_name || 'Client';
+  if (c.author_id === me) return 'You (coach)';
+  if (!c.author) return 'Previous coach';
+  return `Coach · ${c.author.full_name}`;
+}
+
 /** Notes thread on a user's record. date = null shows all notes (newest first). */
 export default function Comments({ userId, date = null, context = 'general', placeholder }) {
   const { user, isAdmin } = useAuth();
@@ -31,9 +42,9 @@ export default function Comments({ userId, date = null, context = 'general', pla
   return (
     <div className="comments">
       {list.length ? list.map((c) => (
-        <div key={c.id} className={`comment ${c.author?.role === 'admin' ? 'from-coach' : 'from-user'}`}>
+        <div key={c.id} className={`comment ${c.author_id !== c.user_id ? 'from-coach' : 'from-user'}`}>
           <div className="comment-meta">
-            <b>{c.author?.role === 'admin' ? `Coach${c.author?.full_name ? ' · ' + c.author.full_name : ''}` : c.author?.full_name || 'You'}</b>
+            <b>{authorLabel(c, user.id)}</b>
             {c.context !== 'general' && <span className="tag">{c.context}</span>}
             <small className="muted">{!date && c.log_date ? fmt(c.log_date) + ' · ' : ''}{fmtTime(c.created_at)}</small>
             {(c.author_id === user.id || isAdmin) && <button className="icon-btn sm" onClick={() => del(c)} aria-label="Delete"><Trash2 size={14} /></button>}
