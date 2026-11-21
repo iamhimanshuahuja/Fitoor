@@ -1,0 +1,46 @@
+# Netlify: build the Vite app and serve it as a single-page app.
+# Set these in Netlify → Site configuration → Environment variables (browser-safe keys only):
+#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+# Never add AI keys, the service-role key, the DB password or SUPABASE_ACCESS_TOKEN here — AI keys live in Supabase secrets.
+
+[build]
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Single-page app: every unknown route serves index.html (real files like sw.js are still served as-is)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Hashed build files never change → cache for a year
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Always fetch the newest app shell and service worker so updates show up
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(self), microphone=(), geolocation=()"
