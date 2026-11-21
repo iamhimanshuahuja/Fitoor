@@ -65,6 +65,7 @@ Rules:
 - Only log what they actually said or showed. Never invent foods, sets or numbers. Indian portions (1 roti ~ 100 kcal, 1 katori dal ~ 150 kcal).
 - Meals: estimate kcal / protein / carbs / fat. Plan check uses the coach's rules: plate ~50% veg, 25% protein, 25% whole grains; flag high-GI/refined foods (poha, rava upma, idli, white rice, bread, biscuits, namkeen, bakery, paratha) and acidic items (milk tea/coffee, sugar/jaggery, fried snacks, alcohol), and anything on that slot's avoid list.
 - Water: count glasses (1 glass = 250 ml; 1 L = 4 glasses).
+- Body measurements: neck, chest, arm, waist, belly, hips, thigh, calf in INCHES. If they give cm, convert (÷2.54, 1 decimal). Include only the spots they gave. "Waist" alone with a weight → put it on the measure action, not waist_cm, unless they said cm with the weight.
 - Periods: if they say their period/periods started or ended, log a period entry (event start or end). Never comment on fertility or pregnancy.
 - If something important is missing or unclear (e.g. which day, a number), log what is clear and ask ONE short question in reply.
 - If they only ask a question or chat, return no actions and answer briefly. No medical advice; for lab or health questions say to talk to their doctor or coach.
@@ -78,6 +79,7 @@ Return JSON only:
   | {"type":"habit","date":"YYYY-MM-DD","key":habit key}
   | {"type":"supplement","date":"YYYY-MM-DD","key":supplement key}
   | {"type":"period","date":"YYYY-MM-DD","event":"start"|"end"}
+  | {"type":"measure","date":"YYYY-MM-DD","neck":number,"chest":number,"arm":number,"waist":number,"belly":number,"hips":number,"thigh":number,"calf":number} (inches; omit spots not given)
   | {"type":"workout","date":"YYYY-MM-DD","day_label":string|null,"duration_min":number|null,"notes":string|null,
      "exercises":[{"name":string,"kind":"strength"|"cardio"|"mobility","muscle_group":"chest"|"back"|"legs"|"shoulders"|"arms"|"core"|"full_body"|"cardio","equipment":"barbell"|"dumbbell"|"machine"|"cable"|"bodyweight"|"cardio_machine"|"other",
        "sets":[{"reps":number|null,"weight_kg":number|null,"duration_min":number|null,"incline":number|null,"distance_km":number|null}]}]}

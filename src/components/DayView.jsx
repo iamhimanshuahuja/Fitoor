@@ -231,7 +231,8 @@ export function WorkoutSummary({ w, editable = false, onChange }) {
 }
 
 function WeightQuick({ userId, date, weight, editable, onSaved, setLightbox }) {
-  const { has } = useAuth();
+  const { has, user } = useAuth();
+  const own = user?.id === userId;
   const [val, setVal] = useState(weight?.weight_kg || '');
   const [waist, setWaist] = useState(weight?.waist_cm || '');
   const [busy, setBusy] = useState(false);
@@ -274,7 +275,7 @@ function WeightQuick({ userId, date, weight, editable, onSaved, setLightbox }) {
   };
 
   return (
-    <Card title="Weight">
+    <Card title="Weight" action={own && <Link className="btn btn-ghost btn-sm" to="/app/weight#inches">📏 Inches</Link>}>
       {editable ? (
         <div className="weight-quick">
           <div className="row gap">

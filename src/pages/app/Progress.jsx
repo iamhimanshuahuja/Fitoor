@@ -8,7 +8,7 @@ export default function Progress() {
     <div className="page">
       <div className="page-head">
         <h1>My progress</h1>
-        {has('weight') && <Link className="btn btn-ghost btn-sm" to="/app/weight">Weight log & photos</Link>}
+        {has('weight') && <Link className="btn btn-ghost btn-sm" to="/app/weight">Weight, inches & photos</Link>}
       </div>
       <ProgressDashboard userId={user.id} profile={profile} />
     </div>

@@ -105,7 +105,7 @@ export default function UserDetail() {
           <DayView key={date} userId={id} date={date} mode="admin" features={effective} />
         </>
       )}
-      {tab === 'weight' && <WeightPanel userId={id} profile={profile} />}
+      {tab === 'weight' && <WeightPanel userId={id} profile={profile} coach />}
       {tab === 'gym' && <GymPanel userId={id} />}
       {tab === 'labs' && (
         <>
@@ -247,7 +247,7 @@ function Overview({ userId, profile, onOpenDay, onProfileSaved }) {
         <Card title="Meals per day"><DailyBars data={rows} keys={[{ key: 'on', name: 'On plan', color: COLORS.fresh, stack: 'a' }, { key: 'off', name: 'Off / unmarked', color: COLORS.haldi, stack: 'a' }]} /></Card>
         <Card title="Estimated calories (AI)">{rows.some((r) => r.kcal) ? <DailyBars data={rows} keys={[{ key: 'kcal', name: 'kcal', color: COLORS.deep }]} /> : <Empty>No calorie estimates yet.</Empty>}</Card>
       </div>
-      <WeightPanel userId={userId} profile={profile} />
+      <WeightPanel userId={userId} profile={profile} coach />
     </>
   );
 }

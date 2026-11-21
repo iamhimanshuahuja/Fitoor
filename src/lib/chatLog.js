@@ -1,10 +1,11 @@
+import { SITE_KEYS } from './measure';
 import { supabase } from './supabase';
 import { runAI } from './ai';
 import { today, addDays } from './dates';
 import { SLOTS, HABITS, SUPPLEMENTS, DAY_LABELS, MUSCLES, EQUIPMENT } from './constants';
 
 /** Which feature each action type needs. */
-export const ACTION_FEATURE = { meal: 'meals', weight: 'weight', water: 'habits', habit: 'habits', supplement: 'supplements', workout: 'gym', period: null };
+export const ACTION_FEATURE = { meal: 'meals', weight: 'weight', water: 'habits', habit: 'habits', supplement: 'supplements', workout: 'gym', period: null, measure: 'weight' };
 /** Can this user save this kind of entry? (null = no plan feature needed) */
 export const actionAllowed = (a, has) => a.type in ACTION_FEATURE && (!ACTION_FEATURE[a.type] || has(ACTION_FEATURE[a.type]));
 
@@ -65,6 +66,20 @@ export async function saveAction(userId, a, photoPath) {
     const { error } = await supabase.from('weight_logs').upsert(row, { onConflict: 'user_id,log_date' });
     if (error) throw error;
     return 'Weight saved';
+  }
+  if (a.type === 'measure') {
+    // inches; merge into that day's row so a second message doesn't wipe other spots
+    const { data: prev } = await supabase.from('body_measurements').select('*').eq('user_id', userId).eq('log_date', date).maybeSingle();
+    const row = { user_id: userId, log_date: date };
+    let any = false;
+    for (const k of SITE_KEYS) {
+      const v = n(a[k]);
+      if (v != null && v > 3 && v < 90) { row[k] = v; any = true; } else if (prev?.[k] != null) row[k] = prev[k];
+    }
+    if (!any) throw new Error('Check the measurements (inches)');
+    const { error } = await supabase.from('body_measurements').upsert(row, { onConflict: 'user_id,log_date' });
+    if (error) throw error;
+    return 'Measurements saved';
   }
   if (a.type === 'water') {
     const g = Math.max(0, Math.round(n(a.glasses) || 0));

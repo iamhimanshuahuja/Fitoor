@@ -1,3 +1,4 @@
+import { SITES as MEASURE_SITES } from '../lib/measure';
 import { cheer } from '../lib/cheer';
 import { useEffect, useRef, useState } from 'react';
 import { Sparkles, X, Send, Camera, ImagePlus, Check, Trash2 } from 'lucide-react';
@@ -14,7 +15,7 @@ const EXAMPLES = [
   '30 min incline walk at 8, then 3×12 leg press at 60 kg',
   'Drank 3 glasses of water and had my whey',
 ];
-const ICON = { meal: '🍛', weight: '⚖️', water: '💧', habit: '✅', supplement: '💊', workout: '🏋️', period: '🩸' };
+const ICON = { meal: '🍛', weight: '⚖️', water: '💧', habit: '✅', supplement: '💊', workout: '🏋️', period: '🩸', measure: '📏' };
 const dayName = (d) => (!d || d === today() ? 'Today' : d === addDays(today(), -1) ? 'Yesterday' : fmt(d));
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -80,7 +81,7 @@ export default function ChatLog() {
       const done = await saveAction(user.id, a, msg.photoPath);
       patch(msg.id, a._id, { _status: 'saved', _msg: done });
       notifyDataChanged();
-      cheer(a.type === 'meal' && a.plan_check === 'on_plan' ? 'on_plan' : a.type === 'workout' ? 'workout' : a.type === 'weight' ? 'weight' : a.type === 'period' ? 'period' : 'chat');
+      cheer(a.type === 'meal' && a.plan_check === 'on_plan' ? 'on_plan' : a.type === 'workout' ? 'workout' : a.type === 'weight' ? 'weight' : a.type === 'period' ? 'period' : a.type === 'measure' ? 'measure' : 'chat');
     } catch (e) {
       patch(msg.id, a._id, { _status: 'pending', _msg: e.message });
     }
@@ -165,6 +166,9 @@ function ActionCard({ a, onChange, onSave, onSkip }) {
   } else if (a.type === 'weight') {
     title = 'Weight';
     body = <>{num('weight_kg', 'kg', '0.1')}{num('waist_cm', 'Waist cm', '0.5')}</>;
+  } else if (a.type === 'measure') {
+    title = 'Measurements (inches)';
+    body = <>{MEASURE_SITES.filter((s) => a[s.key] != null).map((s) => <span key={s.key}>{num(s.key, s.label, '0.25')}</span>)}</>;
   } else if (a.type === 'water') {
     title = 'Water';
     body = <>{num('glasses', 'Glasses', '1')}</>;

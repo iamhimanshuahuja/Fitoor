@@ -5,9 +5,10 @@ import { fmtLong } from '../../lib/dates';
 import { Card, Stat, Empty, SignedImg, Lightbox } from '../../components/ui';
 import { WeightChart } from '../../components/Charts';
 import ProgressPhotos from '../../components/ProgressPhotos';
+import Measurements from '../../components/Measurements';
 import { downloadCSV } from '../../lib/csv';
 
-export function WeightPanel({ userId, profile }) {
+export function WeightPanel({ userId, profile, coach = false }) {
   const [rows, setRows] = useState([]);
   const [range, setRange] = useState(90);
   const [lb, setLb] = useState(null);
@@ -34,6 +35,7 @@ export function WeightPanel({ userId, profile }) {
       }>
         {shown.length ? <WeightChart data={shown} target={profile?.target_weight} /> : <Empty>Log your weight on the Today screen to see your trend.</Empty>}
       </Card>
+      <Measurements userId={userId} coach={coach} />
       <ProgressPhotos userId={userId} />
       <Card title="History" action={rows.length > 0 && <button className="btn btn-ghost btn-sm" onClick={() => downloadCSV('weight.csv', rows.map((r) => ({ date: r.log_date, weight_kg: r.weight_kg, waist_cm: r.waist_cm ?? '', source: r.source })))}>Export CSV</button>}>
         <div className="table-wrap">
@@ -66,7 +68,7 @@ export default function Weight() {
   const { user, profile } = useAuth();
   return (
     <div className="page">
-      <div className="page-head"><h1>Weight</h1></div>
+      <div className="page-head"><h1>Weight & inches</h1></div>
       <WeightPanel userId={user.id} profile={profile} />
     </div>
   );

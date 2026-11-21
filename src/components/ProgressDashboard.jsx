@@ -1,3 +1,4 @@
+import { measureStats } from '../lib/measure';
 import { useEffect, useMemo, useState } from 'react';
 import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, CartesianGrid, Area, ReferenceLine, ReferenceDot } from 'recharts';
 import { supabase } from '../lib/supabase';
@@ -41,7 +42,8 @@ export default function ProgressDashboard({ userId, profile }) {
     Promise.all([
       supabase.from('weight_logs').select('log_date, weight_kg').eq('user_id', userId).order('log_date'),
       supabase.from('lab_results').select('test_name, panel, value, unit, ref_low, ref_high, flag, lab_reports(report_date)').eq('user_id', userId),
-    ]).then(([w, l]) => setBase({ weights: w.data || [], labs: l.data || [] }));
+      supabase.from('body_measurements').select('*').eq('user_id', userId).order('log_date'),
+    ]).then(([w, l, bm]) => setBase({ weights: w.data || [], labs: l.data || [], measures: bm.data || [] }));
   }, [userId]);
 
   const range = useMemo(() => {
@@ -68,6 +70,8 @@ export default function ProgressDashboard({ userId, profile }) {
     const current = W.at(-1)?.kg ?? start;
     const target = profile?.target_weight ? Number(profile.target_weight) : null;
     const lowest = W.length ? W.reduce((a, b) => (b.kg < a.kg ? b : a)) : null;
+    const ms = measureStats(d.measures || []);
+    const inches = ms.totalSites ? { lost: -ms.total, sites: ms.totalSites, since: d.measures[0].log_date } : null;
     const lost = start != null && current != null ? +(start - current).toFixed(1) : null;
     const toGoal = target != null && current != null ? +(current - target).toFixed(1) : null;
     const pct = target != null && start != null && start !== target ? Math.max(0, Math.min(100, ((start - current) / (start - target)) * 100)) : null;
@@ -129,7 +133,7 @@ export default function ProgressDashboard({ userId, profile }) {
       return { ...t, first, last, flagged: o1 > 0 || o2 > 0, better: t.pts.length > 1 && o2 < o1, worse: t.pts.length > 1 && o2 > o1, out: o2 };
     }).filter((t) => !onlyOut || t.flagged).sort((a, b) => (b.out || 0) - (a.out || 0) || a.name.localeCompare(b.name));
 
-    return { W, Wr, wFallback, start, startDate, current, target, lowest, lost, toGoal, pct, week, chart, nDays, rings, tests, reportDates, rFrom, rTo, panels,
+    return { inches, W, Wr, wFallback, start, startDate, current, target, lowest, lost, toGoal, pct, week, chart, nDays, rings, tests, reportDates, rFrom, rTo, panels,
       eatenAvg: Math.round(sum('eaten') / Math.max(1, week.filter((r) => r.eaten).length)), burnedWeek: sum('burned'), proteinAvg: Math.round(sum('protein') / Math.max(1, week.filter((r) => r.protein).length)) };
   }, [d, profile, range, labFrom, labTo, panel, onlyOut]);
 
@@ -194,6 +198,7 @@ export default function ProgressDashboard({ userId, profile }) {
           <Sticker tone="haldi" emoji="🍛" value={x.eatenAvg || null} empty="No meals logged" unit="kcal / day" label={`Eaten (avg/day, ${rangeLabel})`} />
           <Sticker tone="lav" emoji="🏋️" value={x.burnedWeek || null} empty="No workouts" unit="kcal" label={`Burned at gym (${rangeLabel}, est.)`} />
           <Sticker tone="sky" emoji="🫘" value={x.proteinAvg || null} empty="No protein data" unit="g / day" label={`Protein (avg/day, ${rangeLabel})`} />
+          {x.inches && <Sticker tone="sky" emoji="📏" value={x.inches.lost > 0 ? +x.inches.lost.toFixed(1) : 0} unit="in" label={x.inches.lost > 0 ? `Inches lost · ${x.inches.sites} spots since ${fmt(x.inches.since)}` : `Inches · ${x.inches.sites} spots tracked`} />}
           <Sticker tone="lime" emoji="📉" value={x.lowest ? x.lowest.kg : null} empty="No weigh-ins" unit="kg" label={x.lowest ? `Lowest · ${fmt(x.lowest.date)}` : 'Lowest weight'} />
         </div>
       </div>

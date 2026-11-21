@@ -1243,3 +1243,35 @@ body.chat-open .cheer-wrap { bottom: calc(150px + var(--safe-b)); }
   .rp-qr svg { width: 100%; height: 100%; }
   .rp-print-about p { margin: 2mm 0 0; font-size: 9.5pt; }
 }
+
+/* ===================== Body measurements (inches) ===================== */
+.bm { display: grid; gap: 14px; margin-bottom: 14px; }
+.bm > .card { margin-bottom: 0; }
+.bm-hero { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin-bottom: 10px; }
+.bm-total { display: inline-flex; align-items: baseline; gap: 8px; background: var(--sky); border: 2px solid var(--ink); border-radius: 14px; padding: 8px 14px; box-shadow: var(--pop); }
+.bm-total.good { background: var(--lime); }
+.bm-total b { font-family: var(--display); font-size: 1.9rem; line-height: 1; }
+.bm-total b small { font-size: .9rem; }
+.bm-total span { font-weight: 600; font-size: .88rem; }
+.bm-hero p { margin: 0; flex: 1 1 220px; }
+.bm-sites { list-style: none; padding: 0; margin: 0 0 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.bm-sites button { width: 100%; text-align: left; display: grid; gap: 2px; background: var(--paper); border: 2px solid var(--ink); border-radius: 12px; padding: 8px 10px; cursor: pointer; font: inherit; color: var(--ink); min-height: 44px; }
+.bm-sites button.on { background: var(--lime); box-shadow: var(--pop); }
+.bm-sites button:focus-visible { outline: 3px solid var(--lav); outline-offset: 2px; }
+.bm-site-name { font-size: .78rem; font-weight: 700; }
+.bm-sites b { font-size: 1.15rem; } .bm-sites b small { font-size: .72rem; font-weight: 600; }
+.bm-chg { font-size: .75rem; font-weight: 700; }
+.bm-chg.down { color: var(--deep); } .bm-chg.up { color: #B4233A; }
+.bm-chart-title { font-size: .95rem; margin: 4px 0 2px; }
+.bm-form { margin-top: 12px; border-top: 2px dashed var(--ink); padding-top: 12px; display: grid; gap: 10px; }
+.bm-form-top { align-items: flex-end; justify-content: space-between; }
+.bm-form-top label { display: grid; gap: 4px; font-weight: 600; }
+.bm-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 640px) { .bm-grid { grid-template-columns: repeat(4, 1fr); } }
+.bm-field { display: grid; gap: 4px; font-weight: 600; font-size: .9rem; }
+.bm-field small { font-weight: 400; color: var(--muted); }
+.bm-how { font-size: .74rem; line-height: 1.3; }
+.bm-how-intro { background: #FFF6DA; border: 2px solid var(--ink); border-radius: 12px; padding: 8px 12px; margin: 0; }
+.bm-table td, .bm-table th { white-space: nowrap; text-align: right; }
+.bm-table td:first-child, .bm-table th:first-child { text-align: left; white-space: normal; }
+.nowrap { white-space: nowrap; }
