@@ -955,3 +955,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--ink); box-shadow
 .cal-tag.juice.scheduled { background: var(--haldi); border-radius: 6px; padding: 0 3px; }
 .cal-tag.juice.done { background: var(--lime); border-radius: 6px; padding: 0 3px; }
 .cal-tag.juice.missed { background: #FFE3E7; border-radius: 6px; padding: 0 3px; }
+
+/* Netlify adds a "Powered by Netlify" badge (iframe#nl-badge-frame) fixed bottom-right.
+   On phones/tablets it sits on top of the bottom nav, so hide it below the desktop breakpoint. */
+@media (max-width: 899px) {
+  iframe#nl-badge-frame, #nl-badge-frame, [id^="nl-badge"] { display: none !important; }
+}
