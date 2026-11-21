@@ -34,6 +34,12 @@ const n = (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Numb
 /** AI dates must be real and not in the future; anything else falls back to today. */
 const safeDate = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(d || '') && d <= today() && d >= addDays(today(), -60) ? d : today());
 
+/** True when the person switched on 🍕 Cheat day for that date (meals logged that day are tagged cheat). */
+export async function isCheatDay(userId, date) {
+  const { data } = await supabase.from('habit_logs').select('habits').eq('user_id', userId).eq('log_date', date).maybeSingle();
+  return !!data?.habits?.cheat_day;
+}
+
 async function mergeHabits(userId, date, fn) {
   const { data } = await supabase.from('habit_logs').select('habits, supplements').eq('user_id', userId).eq('log_date', date).maybeSingle();
   const next = fn({ habits: { ...(data?.habits || {}) }, supplements: { ...(data?.supplements || {}) } });
@@ -46,10 +52,11 @@ export async function saveAction(userId, a, photoPath) {
   const date = safeDate(a.date);
   if (a.type === 'meal') {
     const slot = SLOTS.some((s) => s.key === a.slot) ? a.slot : 'other';
-    const followed = a.plan_check === 'on_plan' ? true : a.plan_check === 'off_plan' ? false : null;
+    const cheat = await isCheatDay(userId, date);
+    const followed = cheat ? null : a.plan_check === 'on_plan' ? true : a.plan_check === 'off_plan' ? false : null;
     const { error } = await supabase.from('meal_logs').insert({
       user_id: userId, log_date: date, slot, description: a.description || null,
-      photo_path: a.uses_photo ? photoPath || null : null, followed,
+      photo_path: a.uses_photo ? photoPath || null : null, followed, cheat,
       kcal: n(a.kcal), protein_g: n(a.protein_g), carbs_g: n(a.carbs_g), fat_g: n(a.fat_g),
       ai: { source: 'chat', plan_check: a.plan_check, plan_note: a.plan_note, items: a.description ? [a.description] : [] },
     });

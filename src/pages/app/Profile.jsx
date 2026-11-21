@@ -39,7 +39,14 @@ export default function Profile() {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
   const save = async (e) => {
-    e.preventDefault(); setBusy(true);
+    e.preventDefault();
+    if (f.dob) {
+      const d = new Date(f.dob + 'T00:00:00'), now = new Date();
+      const age = now.getFullYear() - d.getFullYear() - (now < new Date(now.getFullYear(), d.getMonth(), d.getDate()) ? 1 : 0);
+      if (d > now) return show('Date of birth can’t be in the future', 'bad');
+      if (age < 18) return show('Fitoor is for people aged 18 and over (see our Terms).', 'bad');
+    }
+    setBusy(true);
     const { error } = await supabase.from('profiles').update({
       full_name: f.full_name, phone: f.phone || null, gender: f.gender || null, dob: f.dob || null,
       height_cm: f.height_cm || null, start_weight: f.start_weight || null, target_weight: f.target_weight || null, goal: f.goal || null, diet_pref: f.diet_pref || null,

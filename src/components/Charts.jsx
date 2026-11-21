@@ -46,12 +46,24 @@ export function DailyBars({ data, keys, height = 220 }) {
 }
 
 export function TrendLine({ data, dataKey = 'value', name, color = C.deep, refLow, refHigh, height = 200, unit = '' }) {
+  // Short ranges show day + month (two dates in one month no longer both read "Nov 26");
+  // the y-axis hugs the data (plus reference lines) instead of starting at 0, so small changes are visible.
+  const dates = data.map((d) => d.date).filter(Boolean).sort();
+  const spanDays = dates.length > 1 ? (new Date(dates.at(-1)) - new Date(dates[0])) / 864e5 : 0;
+  const tickFmt = spanDays < 120 ? { day: 'numeric', month: 'short' } : { month: 'short', year: '2-digit' };
+  const vals = data.map((d) => Number(d[dataKey])).filter((v) => Number.isFinite(v)).concat([refLow, refHigh].filter((v) => v != null).map(Number));
+  let domain = ['auto', 'auto'];
+  if (vals.length) {
+    const lo = Math.min(...vals), hi = Math.max(...vals), pad = Math.max((hi - lo) * 0.15, Math.abs(hi) * 0.02, 0.5);
+    const nice = (v) => Math.round(v * 10) / 10;
+    domain = [nice(Math.max(lo >= 0 ? 0 : -Infinity, lo - pad)), nice(hi + pad)];
+  }
   return (
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={data} margin={{ top: 10, right: 12, left: -12, bottom: 0 }}>
         <CartesianGrid stroke={C.grid} vertical={false} />
-        <XAxis dataKey="date" tickFormatter={(d) => fmt(d, { month: 'short', year: '2-digit' })} tick={axis} />
-        <YAxis tick={axis} width={48} />
+        <XAxis dataKey="date" tickFormatter={(d) => fmt(d, tickFmt)} tick={axis} minTickGap={16} />
+        <YAxis tick={axis} width={48} domain={domain} allowDataOverflow={false} tickFormatter={(v) => (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 10) / 10)} />
         <Tooltip {...tip} formatter={(v) => `${v} ${unit}`} labelFormatter={(d) => fmt(d, { day: 'numeric', month: 'short', year: 'numeric' })} />
         {refHigh != null && <ReferenceLine y={refHigh} stroke={C.red} strokeDasharray="4 4" />}
         {refLow != null && <ReferenceLine y={refLow} stroke={C.haldi} strokeDasharray="4 4" />}

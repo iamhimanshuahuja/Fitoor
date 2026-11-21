@@ -58,7 +58,7 @@ export default function Comments({ userId, date = null, context = 'general', pla
             {['general', 'meal', 'weight', 'workout', 'lab', 'health'].map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         )}
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder || (isAdmin ? 'Add a health note or feedback…' : 'Reply to your coach…')} />
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder || (isAdmin ? 'Add a health note or feedback…' : 'Reply to your coach…')} aria-label={isAdmin ? 'Note for your client' : 'Message to your coach'} maxLength={2000} />
         <button className="btn btn-primary" aria-label="Send"><Send size={16} /></button>
       </form>
     </div>

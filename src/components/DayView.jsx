@@ -326,8 +326,9 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
   const setN = (k) => (e) => setNutr({ ...nutr, [k]: e.target.value });
   const r1 = (v) => (v == null || v === '' ? '' : String(Math.round(Number(v) * 10) / 10));
 
+  const [busyMsg, setBusyMsg] = useState('');
   const attach = async (file) => {
-    setBusy(true); setErr('');
+    setBusy(true); setErr(''); setBusyMsg(has('ai') ? 'Uploading & guessing calories…' : 'Uploading photo…');
     try {
       if (photo?.path) await supabase.storage.from('media').remove([photo.path]);
       const up = await uploadMedia(userId, 'meals', file);
@@ -354,7 +355,7 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
   };
   const add = async () => {
     if (!desc.trim() && !photo) return setErr('Add a photo or say what you had');
-    setBusy(true); setErr('');
+    setBusy(true); setErr(''); setBusyMsg('Saving…');
     const num = (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Math.max(0, Number(v)));
     const followed = cheat ? null : ai?.plan_check ? ai.plan_check === 'on_plan' : null;
     const edited = ai && ['kcal', 'protein_g', 'carbs_g', 'fat_g'].some((k) => num(nutr[k]) !== (ai[k] == null ? null : Math.round(Number(ai[k]) * 10) / 10));
@@ -463,7 +464,7 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
             <button className="btn btn-primary" disabled={busy || (!desc.trim() && !photo)} onClick={add}>Add meal</button>
             {(photo || desc || nutr.kcal) && <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => resetDraft(true)}>Clear</button>}
           </div>
-          {busy && <p className="muted small"><Spinner size={14} /> {photo ? 'Saving' : 'Uploading'}{has('ai') && !photo ? ' & guessing calories' : ''}…</p>}
+          {busy && <p className="muted small"><Spinner size={14} /> {busyMsg}</p>}
         </div>
       )}
       {err && <p className="error small">{err}</p>}

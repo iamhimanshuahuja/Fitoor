@@ -8,7 +8,7 @@ import { compressImage, uploadMedia, toBase64 } from '../lib/media';
 import { SLOTS } from '../lib/constants';
 import { today } from '../lib/dates';
 import { cheer } from '../lib/cheer';
-import { notifyDataChanged } from '../lib/chatLog';
+import { notifyDataChanged, isCheatDay } from '../lib/chatLog';
 import { Spinner } from './ui';
 
 /** Slot that fits the current time of day. */
@@ -43,6 +43,7 @@ export default function CalorieScanner({ onClose, date = today() }) {
   }, [res, mult]);
   const setN = (k) => (e) => setNutr({ ...nutr, [k]: e.target.value });
 
+  useEffect(() => { if (user) isCheatDay(user.id, date).then((c) => c && setCheat(true)); }, [user?.id, date]);
   useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview]);
   useEffect(() => {
     const esc = (e) => e.key === 'Escape' && onClose();
@@ -111,7 +112,7 @@ export default function CalorieScanner({ onClose, date = today() }) {
           <div className="scan-result">
             <img src={preview} alt="Your meal" className="scan-img" />
             {busy && <p className="scan-busy"><Spinner /> Looking at your plate…</p>}
-            {res && noFood && <p className="scan-nofood">{res.plan_note || 'No food found in this photo.'} Try another photo.</p>}
+            {res && noFood && <p className="scan-nofood">{(res.plan_note || 'No food found in this photo').replace(/\.?$/, '.')} Try another photo.</p>}
             {res && !noFood && (
               <>
                 <div className="scan-total">

@@ -93,6 +93,8 @@ Return JSON only:
 Client data (JSON): ${JSON.stringify(b.data).slice(0, 30000)}
 Write a short, warm, specific review the coach can send. Vegetarian-friendly Indian food suggestions only.
 Do not give medical advice or diagnose; for lab values say "discuss with your doctor".
+Meals with "cheat": true are planned, guilt-free treats agreed with the coach: never list them under "watch" or criticise them; at most mention kindly that a treat was enjoyed. Judge plan adherence on the other meals only.
+Never comment on body size; praise effort and consistency.
 Return JSON only:
 {"headline": string (max 12 words), "wins": [string] (2-4), "watch": [string] (1-3), "suggestions": [string] (2-4),
  "message_to_client": string (60-110 words, friendly, second person)}`,

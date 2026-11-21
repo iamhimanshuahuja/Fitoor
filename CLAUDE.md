@@ -151,6 +151,7 @@ First admin: sign up in the app, then `update public.profiles set role='admin' w
 - Wearable import (Apple Health) once native.
 
 ## 10. Changelog
+- 2026-11-21 — **Pre-launch QA** (v11): end-to-end test of visitor, client, coach and super admin at 360/390/768/1024/1440 px. Fixes: Weight page sideways scroll on phones (measurement table in a grid), template dropdown overflow, chat/scanner meals now tagged cheat on a cheat day, AI weekly check-in no longer criticises cheat meals, friendlier login/signup errors, under-18 DOB blocked on Me, short-range chart axes, bigger tap targets (water glasses, toggles, footer links), labels on gym set inputs and note box. DB: helper functions no longer callable by visitors; public `recipes` bucket limited to images ≤ 3 MB (`supabase/migration_v11_hardening.sql`). QA accounts `qa-*@fitoor.life` kept on purpose (credentials in git-ignored `supabase/dev/QA_ACCOUNTS.md`); harness `supabase/dev/qa2.js`.
 - 2026-11-21 — v10: meals are reviewed before saving with editable kcal/protein/carbs/fat, 📸 Guess calories scanner, cheat meals/days, Terms of Service + Privacy Policy (DPDP Act) with consent gate. Weekly AI check-in now sends first name only. Migration `supabase/migration_v10_cheat_terms.sql`.
 - 2026-11-21 — **Body measurements** (v9): optional inches at 8 spots, inches lost, trends, chat logging, Progress sticker.
 - 2026-11-21 — **Recipe book** (v8): public /recipes with filters + SEO edge function + sitemap, print/PDF with QR + About Fitoor, client recipes reviewed by coaches, diet preference on profile, 6 starter recipes.
@@ -198,4 +199,9 @@ First admin: sign up in the app, then `update public.profiles set role='admin' w
 - On a juice day DayView shows the juice checklist instead of meal slots; DB trigger `block_food_on_juice_day` rejects client meal inserts that day (coach can still record).
 - Trigger `guard_juice_day`: clients can only set request_day/reason (→ pending) or mark done. The old `juices` plan feature was removed from all plans.
 - Personal data import scripts (`supabase/import/`, `RUN_IN_SUPABASE_v2.sql`) are git-ignored: the GitHub repo is public.
+
+### QA / testing (21 Nov 2026)
+- Accounts: qa-admin (super_admin), qa-coach (coach, code QA59), qa-client (female, client of QA59, signed up via invite link), qa-client2 (assigned by super admin). Credentials: `supabase/dev/QA_ACCOUNTS.md` (git-ignored).
+- Harness (dev server only): in the browser console on localhost:5173 → `const q = await import('/supabase/dev/qa2.js'); await q.check(['/app','/app/weight'], [360,390,768,1024,1440])` loads each route in hidden iframes and reports sideways overflow, console errors, broken images and small tap targets; `q.problems(res)` lists only failures. Helpers `fill`, `byLabel`, `card`, `btn` drive React forms.
+- The browser pane auto-dismisses `confirm()`; call `q.stubDialogs()` before clicking buttons that confirm.
 

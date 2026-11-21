@@ -1360,3 +1360,35 @@ body.chat-open .cheer-wrap { bottom: calc(150px + var(--safe-b)); }
 .gate-check a, .signup-agree a { color: var(--deep); font-weight: 700; }
 .auth-legal { text-align: center; margin-top: 14px; }
 .chat-legal { margin-top: 10px; }
+
+/* ===================== QA fixes (21 Nov) ===================== */
+select, input, textarea { max-width: 100%; }
+label, .row > * { min-width: 0; }
+select { text-overflow: ellipsis; }
+.pub-foot nav a, .h-footlinks a, .auth-legal a, .legal-foot a { display: inline-flex; align-items: center; min-height: 36px; padding: 0 2px; }
+.crumbs a { display: inline-flex; align-items: center; min-height: 32px; }
+/* grid children must be allowed to shrink, or a wide table pushes the whole page sideways */
+.bm { grid-template-columns: minmax(0, 1fr); }
+.bm > * { min-width: 0; }
+.card { min-width: 0; }
+/* water glasses: own row on phones, bigger tap targets */
+@media (max-width: 560px) {
+  .water { flex-wrap: wrap; justify-content: space-between; }
+  .water .glasses { order: 3; flex-basis: 100%; justify-content: space-between; }
+  .glasses button { max-width: none; min-width: 26px; height: 40px; }
+}
+.seg button { min-height: 34px; }
+.link-btn.small { min-height: 32px; padding: 0 6px; }
+/* juice-day pills and lists may wrap on narrow phones */
+.jd-pill { white-space: normal; flex-wrap: wrap; max-width: 100%; }
+.jd-list > li, .jd-row, .jd-actions { min-width: 0; }
+.jd-row, .jd-actions { flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .table-wrap { margin: 0 -14px; padding: 0 14px; max-width: calc(100% + 28px); }
+  .jd-list .table-wrap, li .table-wrap { margin: 0; padding: 0; max-width: 100%; }
+}
+/* printable plan on a phone screen: let the tick-sheet table scroll instead of widening the page (print is unchanged) */
+@media screen and (max-width: 700px) {
+  .pp-page { overflow-x: auto; }
+  .pp-track { min-width: 560px; }
+}

@@ -6,6 +6,19 @@ import { trackLogin, markSessionLogged, clearSessionMark } from '../lib/track';
 import { useAuth } from '../lib/auth';
 import { Logo, Spinner } from '../components/ui';
 
+/** Supabase auth errors → plain words. */
+export function friendlyAuthError(e) {
+  const m = String(e?.message || e || '');
+  if (/invalid login credentials/i.test(m)) return 'Wrong email or password. Try again, or tap “Forgot password?”.';
+  if (/email not confirmed/i.test(m)) return 'Please confirm your email first. Check your inbox (and spam) for our link.';
+  if (/already registered|already been registered|user already exists/i.test(m)) return 'This email already has an account. Log in instead, or reset your password.';
+  if (/password should be at least|weak password/i.test(m)) return 'Use a longer password: at least 8 characters.';
+  if (/rate limit|too many requests/i.test(m)) return 'Too many tries. Wait a minute and try again.';
+  if (/invalid email|unable to validate email/i.test(m)) return 'That email address doesn’t look right.';
+  if (/network|fetch/i.test(m)) return 'Can’t reach Fitoor. Check your internet and try again.';
+  return m || 'Something went wrong. Try again.';
+}
+
 function AuthFrame({ title, sub, children }) {
   return (
     <div className="auth-page">
@@ -38,7 +51,7 @@ export function Login() {
     markSessionLogged();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
-    if (error) { clearSessionMark(); return setErr(error.message); }
+    if (error) { clearSessionMark(); return setErr(friendlyAuthError(error)); }
     trackLogin('sign_in');
   };
   return (
@@ -94,7 +107,7 @@ export function Signup() {
       options: { data: { full_name: f.full_name, phone: f.phone, coach_code: cc.coach.state === 'ok' ? cc.code.trim().toUpperCase() : '', terms_version: TERMS_VERSION, terms_agreed_at: new Date().toISOString() }, emailRedirectTo: `${location.origin}/app` },
     });
     setBusy(false);
-    if (error) { clearSessionMark(); return setErr(error.message); }
+    if (error) { clearSessionMark(); return setErr(friendlyAuthError(error)); }
     if (data.session) { trackLogin('sign_up'); nav('/app'); } else { clearSessionMark(); setDone(true); }
   };
   if (done) return <AuthFrame title="Check your email" sub={`We sent a confirmation link to ${f.email}. Open it on this phone to finish signing up.`} />;
@@ -140,7 +153,7 @@ export function ResetPassword() {
     const save = async (e) => {
       e.preventDefault(); setBusy(true);
       const { error } = await supabase.auth.updateUser({ password: pw });
-      setBusy(false); setMsg(error ? error.message : 'Password updated. You can continue to the app.');
+      setBusy(false); setMsg(error ? friendlyAuthError(error) : 'Password updated. You can continue to the app.');
     };
     return (
       <AuthFrame title="Set a new password">
@@ -156,7 +169,7 @@ export function ResetPassword() {
   const send = async (e) => {
     e.preventDefault(); setBusy(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${location.origin}/reset` });
-    setBusy(false); setMsg(error ? error.message : 'Check your email for a reset link.');
+    setBusy(false); setMsg(error ? friendlyAuthError(error) : 'Check your email for a reset link.');
   };
   return (
     <AuthFrame title="Reset password">

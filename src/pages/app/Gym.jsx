@@ -112,14 +112,14 @@ function WorkoutLogger({ userId, onSaved }) {
                     <td>{j + 1}</td>
                     {it.exercise.kind === 'cardio' ? (
                       <>
-                        <td><input inputMode="decimal" type="number" value={s.duration_min} onChange={(e) => upd(i, j, 'duration_min', e.target.value)} /></td>
-                        <td><input inputMode="decimal" type="number" value={s.incline} onChange={(e) => upd(i, j, 'incline', e.target.value)} /></td>
-                        <td><input inputMode="decimal" type="number" step="0.1" value={s.distance_km} onChange={(e) => upd(i, j, 'distance_km', e.target.value)} /></td>
+                        <td><input inputMode="decimal" type="number" value={s.duration_min} onChange={(e) => upd(i, j, 'duration_min', e.target.value)} aria-label={`Set ${j + 1} minutes`} placeholder="min" /></td>
+                        <td><input inputMode="decimal" type="number" value={s.incline} onChange={(e) => upd(i, j, 'incline', e.target.value)} aria-label={`Set ${j + 1} incline`} placeholder="incl" /></td>
+                        <td><input inputMode="decimal" type="number" step="0.1" value={s.distance_km} onChange={(e) => upd(i, j, 'distance_km', e.target.value)} aria-label={`Set ${j + 1} km`} placeholder="km" /></td>
                       </>
                     ) : (
                       <>
-                        <td><input inputMode="numeric" type="number" value={s.reps} onChange={(e) => upd(i, j, 'reps', e.target.value)} /></td>
-                        <td><input inputMode="decimal" type="number" step="0.5" value={s.weight_kg} onChange={(e) => upd(i, j, 'weight_kg', e.target.value)} placeholder="bw" /></td>
+                        <td><input inputMode="numeric" type="number" value={s.reps} onChange={(e) => upd(i, j, 'reps', e.target.value)} aria-label={`Set ${j + 1} reps`} placeholder="reps" /></td>
+                        <td><input inputMode="decimal" type="number" step="0.5" value={s.weight_kg} onChange={(e) => upd(i, j, 'weight_kg', e.target.value)} placeholder="bw" aria-label={`Set ${j + 1} weight kg (empty = bodyweight)`} /></td>
                       </>
                     )}
                     <td><button className="icon-btn sm" onClick={() => delSet(i, j)} aria-label="Remove set"><Trash2 size={14} /></button></td>

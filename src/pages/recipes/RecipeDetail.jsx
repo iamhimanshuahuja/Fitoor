@@ -77,6 +77,7 @@ export default function RecipeDetail() {
   }, [r]);
 
   if (r === undefined) return <PublicShell><div className="center-pad"><Spinner /></div></PublicShell>;
+  if (r === null) { document.title = 'Recipe not found | Fitoor Kitchen'; }
   if (r === null) return <PublicShell><div className="center-pad"><h1>Recipe not found</h1><p>It may have been removed or is private.</p><Link className="btn btn-primary" to="/recipes">Browse recipes</Link></div></PublicShell>;
 
   const canEdit = user && (r.author_id === user.id || isSuper || (isAdmin && r.status === 'pending'));
