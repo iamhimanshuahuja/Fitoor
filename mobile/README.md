@@ -25,6 +25,10 @@ Never put the service-role key, AI keys, DB password or `SUPABASE_ACCESS_TOKEN` 
 
 ## 2. Build and share (EAS)
 
+**Easiest:** double-click `mobile/build-app.command` in Finder. It installs, runs expo-doctor, logs you in to Expo, links the project, copies the 3 `EXPO_PUBLIC_*` values to EAS, then asks: Android APK, iOS build, or Expo Go QR.
+
+Or by hand:
+
 ```bash
 npm i -g eas-cli            # or use npx eas-cli@latest
 eas login                   # your Expo account
