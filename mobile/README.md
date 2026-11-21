@@ -31,6 +31,7 @@ Never put the service-role key, AI keys, DB password or `SUPABASE_ACCESS_TOKEN` 
 2. **iPhone → TestFlight**: needs an Apple Developer account ($99/yr). Add testers or a public TestFlight link in App Store Connect.
 3. **Push a fix to installed apps**: JS/UI changes reach everyone's installed app on next open, no rebuild or store review (native changes like new packages still need option 1/2).
 4. **Expo Go QR**: quick test on your own phone (needs your Mac running).
+5. **iPhone by cable, free**: no Apple Developer account. Needs Xcode + your Apple ID added in Xcode → Settings → Accounts, iPhone plugged in with Developer Mode on. Builds a Release app on the Mac (`npx expo run:ios --device --configuration Release`) that runs without the Mac, but a free Apple ID's signature expires after 7 days, so reinstall weekly. On first launch trust the developer in iPhone Settings → General → VPN & Device Management.
 
 Or by hand:
 
