@@ -6,7 +6,7 @@ export function useCoaches(enabled = true) {
   const [coaches, setCoaches] = useState([]);
   const load = useCallback(async () => {
     if (!enabled) return;
-    const { data } = await supabase.from('profiles').select('id, full_name, email, role, coach_code, active, created_at')
+    const { data } = await supabase.from('profiles').select('id, full_name, email, role, coach_code, active, created_at, avatar_path')
       .in('role', ['coach', 'super_admin']).order('full_name');
     setCoaches(data || []);
   }, [enabled]);

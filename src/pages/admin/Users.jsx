@@ -6,6 +6,7 @@ import { fmt, daysAgo } from '../../lib/dates';
 import { Card, Empty, Spinner } from '../../components/ui';
 import { attentionReasons } from './Dashboard';
 import { useAuth } from '../../lib/auth';
+import Avatar from '../../components/Avatar';
 import { useCoaches, signupLink } from '../../lib/coaches';
 
 export function InviteButtons({ code, label = 'Copy signup link' }) {
@@ -67,7 +68,7 @@ export default function Users() {
                   const reasons = attentionReasons(u);
                   return (
                     <tr key={u.user_id}>
-                      <td><Link to={`/admin/users/${u.user_id}`}><b>{u.full_name}</b></Link><div className="muted small">{u.email}</div></td>
+                      <td><div className="person"><Avatar path={u.avatar_path} name={u.full_name} size={36} /><div><Link to={`/admin/users/${u.user_id}`}><b>{u.full_name}</b></Link><div className="muted small">{u.email}</div></div></div></td>
                       {isSuper && <td>{u.coach_id ? coachName(u.coach_id) || '—' : <span className="tag warn">no coach</span>}</td>}
                       <td>{u.plan_name || '—'}{!u.active && <span className="tag bad">paused</span>}</td>
                       <td>{u.latest_weight ? `${u.latest_weight} kg` : '—'} {ch != null && <small className={ch < 0 ? 'good' : ch > 0 ? 'warn' : ''}>({ch > 0 ? '+' : ''}{ch})</small>}</td>

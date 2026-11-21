@@ -10,19 +10,20 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
 import { FEATURES } from '../../lib/constants';
 import { Card, Spinner, useToast } from '../../components/ui';
+import Avatar, { AvatarEditor } from '../../components/Avatar';
 
 /** Shows the client's current coach (RLS lets a client read only their own coach's profile). */
 function MyCoach({ coachId }) {
   const [c, setC] = useState(undefined);
   useEffect(() => {
     if (!coachId) { setC(null); return; }
-    supabase.from('profiles').select('full_name').eq('id', coachId).maybeSingle().then(({ data }) => setC(data || null));
+    supabase.from('profiles').select('full_name, avatar_path').eq('id', coachId).maybeSingle().then(({ data }) => setC(data || null));
   }, [coachId]);
   if (c === undefined) return null;
   return (
     <Card title="My coach">
       {c ? (
-        <div className="my-coach"><span className="avatar" aria-hidden>{c.full_name?.[0] || 'C'}</span><div><b>{c.full_name}</b><div className="small muted">Sees your logs, plan and reports, and replies in notes.</div></div></div>
+        <div className="my-coach"><Avatar path={c.avatar_path} name={c.full_name} size={48} /><div><b>{c.full_name}</b><div className="small muted">Sees your logs, plan and reports, and replies in notes.</div></div></div>
       ) : <p className="small muted">You don’t have a coach yet. We’ll match you with one soon.</p>}
     </Card>
   );
@@ -71,6 +72,7 @@ export default function Profile() {
           </div>
         </Card>
       )}
+      <Card><AvatarEditor onMessage={show} /></Card>
       <Card title="Details">
         <form className="form" onSubmit={save}>
           <label>Full name<input value={f.full_name || ''} onChange={set('full_name')} required /></label>

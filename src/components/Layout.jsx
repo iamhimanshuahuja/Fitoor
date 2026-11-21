@@ -4,6 +4,17 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { CalendarDays, CalendarRange, TrendingUp, Scale, Dumbbell, FlaskConical, ClipboardList, User, LayoutDashboard, Users, Layers, LogOut, Shield, ChefHat } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { Logo } from './ui';
+import Avatar from './Avatar';
+
+/** Your photo (or initials) linking to your profile page. */
+function MeLink({ admin, className, children }) {
+  const { profile } = useAuth();
+  return (
+    <NavLink to={admin ? '/admin/me' : '/app/profile'} className={className} aria-label="My profile">
+      <Avatar path={profile?.avatar_path} name={profile?.full_name} size={30} />{children}
+    </NavLink>
+  );
+}
 
 export function AppLayout() {
   const { has, isAdmin, signOut, profile } = useAuth();
@@ -62,7 +73,7 @@ function DeskBar({ items, extra, onSignOut, admin, name, isSuperRole }) {
             <b>{greeting()}{first ? `, ${first}` : ''} 👋</b>
             <span>{now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })} · {admin ? (isSuperRole ? 'Super admin' : 'Coach panel') : tip}</span>
           </div>
-          {!admin && <NavLink to="/app/profile" className="deskbar-btn" aria-label="My profile"><User size={18} /> Me</NavLink>}
+          <MeLink admin={admin} className="deskbar-btn me-avatar-btn">{admin ? 'My profile' : 'Me'}</MeLink>
           <button className="deskbar-btn ghost" onClick={onSignOut}><LogOut size={17} /> Sign out</button>
         </div>
         <nav className="deskbar-nav" aria-label="Main menu">
@@ -94,7 +105,7 @@ function Shell({ items, subtitle, extra, onSignOut, admin, fab, name, super: isS
       <header className="topbar">
         <img src="/logo-inline.svg" alt="Fitoor" height={30} />
         <span className="topbar-title">{admin ? subtitle : ''}</span>
-        {!admin && <NavLink to="/app/profile" className="icon-btn topbar-me" aria-label="My profile"><User size={19} /></NavLink>}
+        <MeLink admin={admin} className="topbar-me has-pic" />
         <button className="icon-btn" onClick={onSignOut} aria-label="Sign out"><LogOut size={18} /></button>
       </header>
       <main className="main"><Outlet /></main>

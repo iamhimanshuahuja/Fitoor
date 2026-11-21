@@ -3,6 +3,7 @@ import { Alert, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { Btn, Card, Empty, Field, Row, T } from './ui';
+import Avatar from './Avatar';
 import { C } from '../theme';
 
 function authorLabel(c, me) {
@@ -18,7 +19,7 @@ export default function Notes({ userId, date = null, title = 'Notes' }) {
   const [list, setList] = useState([]);
   const [text, setText] = useState('');
   const load = useCallback(async () => {
-    let q = supabase.from('comments').select('*, author:author_id(full_name, role)').eq('user_id', userId).order('created_at', { ascending: !!date });
+    let q = supabase.from('comments').select('*, author:author_id(full_name, role, avatar_path)').eq('user_id', userId).order('created_at', { ascending: !!date });
     if (date) q = q.eq('log_date', date);
     const { data } = await q.limit(100);
     setList(data || []);
@@ -33,9 +34,12 @@ export default function Notes({ userId, date = null, title = 'Notes' }) {
   return (
     <Card title={title}>
       {list.length ? list.map((c) => (
-        <View key={c.id} style={{ borderLeftWidth: 3, borderLeftColor: c.author_id === c.user_id ? C.sky : C.lav, paddingLeft: 10, gap: 2 }}>
-          <T small muted>{authorLabel(c, user.id)} · {new Date(c.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</T>
-          <T>{c.body}</T>
+        <View key={c.id} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+          <Avatar path={c.author?.avatar_path} name={c.author?.full_name || 'Coach'} size={32} />
+          <View style={{ flex: 1, borderLeftWidth: 3, borderLeftColor: c.author_id === c.user_id ? C.sky : C.lav, paddingLeft: 10, gap: 2 }}>
+            <T small muted>{authorLabel(c, user.id)} · {new Date(c.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</T>
+            <T>{c.body}</T>
+          </View>
         </View>
       )) : <Empty>No notes yet.</Empty>}
       <Row style={{ alignItems: 'flex-end' }}>

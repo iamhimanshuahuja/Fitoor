@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/auth';
 import { useCoaches, makeCoachCode, signupLink } from '../../lib/coaches';
 import { Card, Empty, Spinner, useToast } from '../../components/ui';
+import Avatar from '../../components/Avatar';
 import { InviteButtons } from './Users';
 
 /** Super admin: manage coach accounts, their codes and client counts. */
@@ -82,7 +83,7 @@ export default function Coaches() {
               <tbody>
                 {coaches.map((c) => (
                   <tr key={c.id}>
-                    <td><b>{c.full_name}</b>{c.id === user.id && <span className="tag">you</span>}<div className="muted small">{c.email}</div></td>
+                    <td><div className="person"><Avatar path={c.avatar_path} name={c.full_name} size={36} /><div><b>{c.full_name}</b>{c.id === user.id && <span className="tag">you</span>}<div className="muted small">{c.email}</div></div></div></td>
                     <td>{c.role === 'super_admin' ? 'Super admin' : 'Coach'}</td>
                     <td className="nowrap">
                       {edit?.id === c.id ? (

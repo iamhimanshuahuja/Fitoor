@@ -75,20 +75,57 @@ export async function uploadFile(userId, folder, doc) {
 }
 
 const cache = new Map();
-/** Signed URL for a private 'media' path (cached ~50 min). */
-export function useSignedUrl(path) {
-  const [url, setUrl] = useState(cache.get(path)?.url || null);
+/** Signed URL for a private object (bucket 'media' by default, 'avatars' for profile photos). Cached ~50 min. */
+export function useSignedUrl(path, bucket = 'media') {
+  const key = `${bucket}/${path}`;
+  const [url, setUrl] = useState(cache.get(key)?.url || null);
   useEffect(() => {
     if (!path) { setUrl(null); return; }
-    const c = cache.get(path);
+    const c = cache.get(key);
     if (c && c.exp > Date.now()) { setUrl(c.url); return; }
     let live = true;
-    supabase.storage.from('media').createSignedUrl(path, 3600).then(({ data }) => {
+    supabase.storage.from(bucket).createSignedUrl(path, 3600).then(({ data }) => {
       if (!live || !data?.signedUrl) return;
-      cache.set(path, { url: data.signedUrl, exp: Date.now() + 50 * 60 * 1000 }); setUrl(data.signedUrl);
+      cache.set(key, { url: data.signedUrl, exp: Date.now() + 50 * 60 * 1000 }); setUrl(data.signedUrl);
     });
     return () => { live = false; };
-  }, [path]);
+  }, [path, bucket, key]);
   return url;
+}
+
+/** Pick a photo, centre-crop it square (512 px JPEG) and make it the user's profile photo. Returns the new path or null. */
+export async function pickAvatar(userId, oldPath, source = 'library') {
+  try {
+    if (source === 'camera') {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) { Alert.alert('Camera access needed', 'Allow camera access for Fitoor in Settings, or pick from your gallery.'); return null; }
+    }
+    const opts = { mediaTypes: ['images'], quality: 1, allowsEditing: true, aspect: [1, 1], ...(source === 'camera' ? { cameraType: ImagePicker.CameraType.front } : {}) };
+    const res = source === 'camera' ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+    if (res.canceled || !res.assets?.length) return null;
+    const a = res.assets[0];
+    const side = Math.min(a.width, a.height);
+    const ctx = ImageManipulator.manipulate(a.uri);
+    if (a.width !== a.height) ctx.crop({ originX: (a.width - side) / 2, originY: (a.height - side) / 2, width: side, height: side });
+    ctx.resize({ width: 512, height: 512 });
+    const out = await (await ctx.renderAsync()).saveAsync({ compress: 0.8, format: SaveFormat.JPEG, base64: true });
+    const path = `${userId}/${Date.now()}-${rand()}.jpg`;
+    const up = await supabase.storage.from('avatars').upload(path, decode(out.base64), { contentType: 'image/jpeg', upsert: false });
+    if (up.error) throw up.error;
+    const { error } = await supabase.from('profiles').update({ avatar_path: path }).eq('id', userId);
+    if (error) { await supabase.storage.from('avatars').remove([path]); throw error; }
+    if (oldPath) supabase.storage.from('avatars').remove([oldPath]);
+    return path;
+  } catch (e) {
+    Alert.alert('Photo not saved', e?.message || 'Please try again.');
+    return null;
+  }
+}
+
+export async function removeAvatar(userId, oldPath) {
+  const { error } = await supabase.from('profiles').update({ avatar_path: null }).eq('id', userId);
+  if (error) { Alert.alert('Not removed', error.message); return false; }
+  if (oldPath) await supabase.storage.from('avatars').remove([oldPath]);
+  return true;
 }
 export const publicUrl = (bucket, path) => (path ? supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl : null);

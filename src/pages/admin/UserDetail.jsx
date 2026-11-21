@@ -21,6 +21,7 @@ import { useCoaches } from '../../lib/coaches';
 import { labKey } from '../../lib/labNames';
 import { WeightPanel } from '../app/Weight';
 import { GymPanel } from '../app/Gym';
+import Avatar from '../../components/Avatar';
 import { LabCompare, LabUploader } from '../app/Labs';
 
 export default function UserDetail() {
@@ -89,10 +90,13 @@ export default function UserDetail() {
       {toast}
       <Link to="/admin/users" className="back"><ArrowLeft size={16} /> Clients</Link>
       <div className="page-head user-head">
-        <div>
+        <div className="person">
+          <Avatar path={profile.avatar_path} name={profile.full_name} size={56} />
+          <div>
           <h1>{profile.full_name}</h1>
         {needsCare(profile) && <span className="tag bad">🤰 {profile.pregnancy === 'pregnant' ? 'Pregnant' : 'Breastfeeding'}</span>}{profile.pcos === 'yes' && <span className="tag warn">PCOS/PCOD</span>}
           <p className="muted small">{profile.email}{profile.phone ? ` · ${profile.phone}` : ''} · {plan?.name || 'No plan'}{profile.goal ? ` · Goal: ${profile.goal}` : ''}</p>
+          </div>
         </div>
       </div>
       <Tabs tabs={tabs} value={tab} onChange={(t) => go(t)} />

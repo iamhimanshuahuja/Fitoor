@@ -15,6 +15,7 @@ import LabsPanel from '../../../components/LabsPanel';
 import Notes from '../../../components/Notes';
 import MonthCalendar from '../../../components/MonthCalendar';
 import DietPlan from '../../../components/DietPlan';
+import Avatar from '../../../components/Avatar';
 import { C } from '../../../theme';
 
 const TABS = [['day', 'Day'], ['cal', 'Calendar'], ['progress', 'Progress'], ['weight', 'Weight'], ['gym', 'Gym'], ['labs', 'Labs'], ['plan', 'Plan'], ['notes', 'Notes']];
@@ -32,8 +33,13 @@ export default function ClientDetail() {
     <Screen>
       <Stack.Screen options={{ title: p.full_name || p.email }} />
       <View style={{ gap: 4 }}>
-        <T style={{ fontSize: 20, fontWeight: '800' }}>{p.full_name || p.email}</T>
-        <T small muted>{p.email}{p.goal ? ` · ${p.goal}` : ''}</T>
+        <Row gap={12}>
+          <Avatar path={p.avatar_path} name={p.full_name || p.email} size={56} />
+          <View style={{ flex: 1 }}>
+            <T style={{ fontSize: 20, fontWeight: '800' }}>{p.full_name || p.email}</T>
+            <T small muted>{p.email}{p.goal ? ` · ${p.goal}` : ''}</T>
+          </View>
+        </Row>
         <Row wrap gap={6}>
           {['pregnant', 'breastfeeding'].includes(p.pregnancy) && <Chip small label={p.pregnancy === 'pregnant' ? '🤰 Pregnant' : 'Breastfeeding'} on tone={C.pink} />}
           {p.pcos === 'yes' && <Chip small label="PCOS/PCOD" on tone={C.lav} />}

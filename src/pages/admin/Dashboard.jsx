@@ -8,6 +8,7 @@ import { addDays, today, fmt, daysAgo, fmtTime } from '../../lib/dates';
 import { slotLabel } from '../../lib/constants';
 import { Card, Stat, Empty, Spinner, SignedImg, Lightbox, useToast } from '../../components/ui';
 import { DailyBars, COLORS } from '../../components/Charts';
+import Avatar from '../../components/Avatar';
 import { CoachJuiceOverview } from '../../components/JuiceDays';
 
 /** Rules for the "needs attention" list */
@@ -41,7 +42,7 @@ function WaitingForCoach({ users, onAssigned }) {
       <ul className="waiting-list">
         {waiting.map((u) => (
           <li key={u.user_id}>
-            <div className="grow"><Link to={`/admin/users/${u.user_id}`}><b>{u.full_name}</b></Link>
+            <Avatar path={u.avatar_path} name={u.full_name} size={36} /><div className="grow"><Link to={`/admin/users/${u.user_id}`}><b>{u.full_name}</b></Link>
               <div className="muted small">{u.email}{u.phone ? ` · ${u.phone}` : ''} · joined {u.created_at ? fmt(u.created_at.slice(0, 10)) : '—'}</div></div>
             <select value={pick[u.user_id] || ''} onChange={(e) => setPick({ ...pick, [u.user_id]: e.target.value })} aria-label={`Coach for ${u.full_name}`}>
               <option value="">Choose coach…</option>
@@ -119,7 +120,7 @@ export default function Dashboard() {
           <ul className="attention">
             {att.map((u) => (
               <li key={u.user_id}>
-                <Link to={`/admin/users/${u.user_id}`}><b>{u.full_name}</b></Link>
+                <Link to={`/admin/users/${u.user_id}`} className="person"><Avatar path={u.avatar_path} name={u.full_name} size={32} /><b>{u.full_name}</b></Link>
                 <span>{u.reasons.join(' · ')}</span>
                 <Link to={`/admin/users/${u.user_id}`} className="icon-btn"><ArrowRight size={16} /></Link>
               </li>

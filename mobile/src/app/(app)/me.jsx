@@ -10,6 +10,7 @@ import { LEGAL_CONTACT } from '../../shared/legal';
 import { FEATURES } from '../../shared/constants';
 import { Btn, Card, Chip, Chips, Field, NumField, Row, Screen, T } from '../../components/ui';
 import WomensHealth from '../../components/WomensHealth';
+import Avatar, { AvatarEditor } from '../../components/Avatar';
 import { C } from '../../theme';
 
 const DIETS = [['veg', 'Veg'], ['egg', 'Eggetarian'], ['nonveg', 'Non-veg']];
@@ -23,7 +24,7 @@ export default function Me() {
   const [logins, setLogins] = useState([]);
   useEffect(() => setF(toForm(profile)), [profile]);
   useEffect(() => {
-    if (profile?.coach_id) supabase.from('profiles').select('full_name').eq('id', profile.coach_id).maybeSingle().then(({ data }) => setCoach(data));
+    if (profile?.coach_id) supabase.from('profiles').select('full_name, avatar_path').eq('id', profile.coach_id).maybeSingle().then(({ data }) => setCoach(data));
     supabase.from('login_events').select('created_at, event, city, region, country, device').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5).then(({ data }) => setLogins(data || []));
   }, [profile?.coach_id, user.id]);
   const set = (k) => (v) => setF({ ...f, [k]: v });
@@ -53,6 +54,7 @@ export default function Me() {
 
   return (
     <Screen>
+      <Card><AvatarEditor note="Your coach sees it next to your name. Only people you work with can see it." /></Card>
       <Card title="Profile">
         <Field label="Full name" value={f.full_name || ''} onChangeText={set('full_name')} />
         <Field label="Mobile" value={f.phone || ''} onChangeText={set('phone')} keyboardType="phone-pad" />
@@ -83,7 +85,7 @@ export default function Me() {
       </Card>
 
       <Card title="My coach">
-        {coach ? <T><T bold>{coach.full_name}</T> sees your logs, plan and reports, and replies in notes.</T> : <T muted>You don’t have a coach yet. We’ll match you soon.</T>}
+        {coach ? <Row gap={12}><Avatar path={coach.avatar_path} name={coach.full_name} size={52} /><T style={{ flex: 1 }}><T bold>{coach.full_name}</T> sees your logs, plan and reports, and replies in notes.</T></Row> : <T muted>You don’t have a coach yet. We’ll match you soon.</T>}
       </Card>
 
       <Card title="My plan">

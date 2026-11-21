@@ -7,6 +7,7 @@ import { useAuth } from '../../lib/auth';
 import { decideRequest } from '../../shared/juiceDays';
 import { today, daysAgo, fmt, fmtLong } from '../../shared/dates';
 import { Btn, Card, Chip, Chips, Empty, Field, Row, Screen, Spinner, Stat, T } from '../../components/ui';
+import Avatar, { AvatarEditor } from '../../components/Avatar';
 import { C, R } from '../../theme';
 
 const lastSeen = (c) => [c.last_meal, c.last_weight, c.last_workout].filter(Boolean).sort().at(-1);
@@ -43,7 +44,10 @@ export default function CoachHome() {
   const unassigned = clients.filter((c) => !c.coach_id).length;
   return (
     <Screen onRefresh={load}>
-      <T style={{ fontSize: 22, fontWeight: '800' }}>Hi {profile?.full_name?.split(' ')[0] || 'coach'}</T>
+      <Row gap={12}>
+        <Avatar path={profile?.avatar_path} name={profile?.full_name} size={48} />
+        <T style={{ fontSize: 22, fontWeight: '800', flex: 1 }}>Hi {profile?.full_name?.split(' ')[0] || 'coach'}</T>
+      </Row>
       {profile?.coach_code ? (
         <Row wrap>
           <T small style={{ flex: 1 }}>Your coach code: <T small bold>{profile.coach_code}</T></T>
@@ -78,14 +82,20 @@ export default function CoachHome() {
         <Field value={q} onChangeText={setQ} placeholder="Search name or email" />
         {!list.length ? <Empty>No clients here yet. Share your invite link.</Empty> : list.map((c) => (
           <Pressable key={c.user_id} onPress={() => router.push(`/coach/client/${c.user_id}`)} style={{ borderWidth: 1.5, borderColor: C.line, borderRadius: R.md, padding: 10, gap: 2, backgroundColor: c.active === false ? '#eee' : '#fff' }} accessibilityRole="button">
+            <Row gap={10} style={{ alignItems: 'flex-start' }}>
+            <Avatar path={c.avatar_path} name={c.full_name || c.email} size={40} />
+            <View style={{ flex: 1, gap: 2 }}>
             <Row style={{ justifyContent: 'space-between' }}><T bold style={{ flex: 1 }}>{c.full_name || c.email}</T><T small muted>{c.plan_name || ''}</T></Row>
             <T small muted>
               {c.latest_weight ? `${c.latest_weight} kg${c.first_weight ? ` (${(c.latest_weight - c.first_weight > 0 ? '+' : '')}${(c.latest_weight - c.first_weight).toFixed(1)})` : ''} · ` : ''}
               {c.meals_7d ? `${Math.round((c.followed_7d / c.meals_7d) * 100)}% on plan · ` : ''}{c.workouts_7d} workouts/7d · last {lastSeen(c) ? fmt(lastSeen(c)) : '—'}{c.active === false ? ' · paused' : ''}
             </T>
+            </View>
+            </Row>
           </Pressable>
         ))}
       </Card>
+      <Card title="My profile"><AvatarEditor note="Your clients see it on their “My coach” card and next to your notes." /></Card>
       <Card title="More">
         <T small muted>Diet plan editing, templates, plans & features, coaches and sign-in history are in the web panel.</T>
         <Row wrap>

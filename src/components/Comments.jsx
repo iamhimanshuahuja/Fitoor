@@ -3,6 +3,7 @@ import { Send, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { fmt, fmtTime } from '../lib/dates';
+import Avatar from './Avatar';
 import { Empty } from './ui';
 
 /**
@@ -24,7 +25,7 @@ export default function Comments({ userId, date = null, context = 'general', pla
   const [ctx, setCtx] = useState(context);
 
   const load = async () => {
-    let q = supabase.from('comments').select('*, author:author_id(full_name, role)').eq('user_id', userId).order('created_at', { ascending: !!date });
+    let q = supabase.from('comments').select('*, author:author_id(full_name, role, avatar_path)').eq('user_id', userId).order('created_at', { ascending: !!date });
     if (date) q = q.eq('log_date', date);
     const { data } = await q.limit(100);
     setList(data || []);
@@ -44,6 +45,7 @@ export default function Comments({ userId, date = null, context = 'general', pla
       {list.length ? list.map((c) => (
         <div key={c.id} className={`comment ${c.author_id !== c.user_id ? 'from-coach' : 'from-user'}`}>
           <div className="comment-meta">
+            <Avatar path={c.author?.avatar_path} name={c.author?.full_name || 'Coach'} size={26} />
             <b>{authorLabel(c, user.id)}</b>
             {c.context !== 'general' && <span className="tag">{c.context}</span>}
             <small className="muted">{!date && c.log_date ? fmt(c.log_date) + ' · ' : ''}{fmtTime(c.created_at)}</small>
