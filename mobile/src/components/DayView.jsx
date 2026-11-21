@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { runAI } from '../lib/ai';
-import { on } from '../lib/events';
+import { on, emit } from '../lib/events';
 import { pickImage, uploadMedia } from '../lib/media';
 import { cheer } from '../shared/cheer';
 import { SLOTS, HABITS, SUPPLEMENTS } from '../shared/constants';
@@ -39,6 +39,8 @@ export default function DayView({ userId, date, mode = 'user' }) {
   }, [userId, date]);
   useEffect(() => { setD(null); load(); }, [load]);
   useEffect(() => on('data-changed', load), [load]);
+  // Any change → this view, Calendar and Progress all reload.
+  const changed = useCallback(() => emit('data-changed'), []);
 
   if (!d) return <Spinner />;
   const { meals, weight, habits, workouts, plan, juiceDay } = d;
@@ -53,13 +55,14 @@ export default function DayView({ userId, date, mode = 'user' }) {
   const saveHabits = async (next) => {
     setD({ ...d, habits: next });
     const { error } = await supabase.from('habit_logs').upsert({ user_id: userId, log_date: date, habits: next.habits || {}, supplements: next.supplements || {} }, { onConflict: 'user_id,log_date' });
-    if (error) Alert.alert('Not saved', error.message);
-    return !error;
+    if (error) { setD((x) => ({ ...x, habits })); cheer('error', error.message); return false; }
+    changed();
+    return true;
   };
   const toggleCheatDay = async () => {
     const h = { ...(habits.habits || {}) };
     if (cheatDay) delete h.cheat_day; else h.cheat_day = true;
-    if (await saveHabits({ ...habits, habits: h }) && !cheatDay) cheer('cheat_day');
+    if (await saveHabits({ ...habits, habits: h })) cheer(!cheatDay ? 'cheat_day' : 'saved');
   };
 
   return (
@@ -75,13 +78,13 @@ export default function DayView({ userId, date, mode = 'user' }) {
         {has('gym') && <Pill>🏋️ {workouts.length ? workouts.map((w) => w.day_label || 'Workout').join(', ') : 'No workout'}</Pill>}
       </View>
 
-      {has('weight') && <WeightQuick userId={userId} date={date} weight={weight} onSaved={load} isCoach={isCoach} />}
+      {has('weight') && <WeightQuick userId={userId} date={date} weight={weight} onSaved={changed} isCoach={isCoach} />}
 
       {juiceDay && (
         <JuiceTracker group={d.juiceGroup} value={habits.habits?.juices || {}} note={juiceDay.note}
           onChange={async (juices) => {
             const before = countJuices(habits.habits?.juices);
-            if (await saveHabits({ ...habits, habits: { ...(habits.habits || {}), juices } }) && countJuices(juices) === 6 && before < 6) cheer('juice_done');
+            if (await saveHabits({ ...habits, habits: { ...(habits.habits || {}), juices } })) cheer(countJuices(juices) === 6 && before < 6 ? 'juice_done' : 'saved');
           }} />
       )}
 
@@ -89,7 +92,7 @@ export default function DayView({ userId, date, mode = 'user' }) {
         <Card title="Meals">
           <T style={st.noFood}>🚫 Juice day: no other food today.{isCoach ? ' You can still record a slip below.' : ' If you feel unwell, message your coach.'}</T>
           {(meals.length > 0 || isCoach) && SLOTS.filter((s) => isCoach || meals.some((m) => m.slot === s.key)).map((s) => (
-            <MealSlot key={s.key} slot={s} meals={meals.filter((m) => m.slot === s.key)} userId={userId} date={date} isCoach={isCoach} onChange={load} />
+            <MealSlot key={s.key} slot={s} meals={meals.filter((m) => m.slot === s.key)} userId={userId} date={date} isCoach={isCoach} onChange={changed} />
           ))}
         </Card>
       )}
@@ -99,7 +102,7 @@ export default function DayView({ userId, date, mode = 'user' }) {
           {cheatDay && <T style={st.cheatBanner}>🍕 <T bold>Cheat day.</T> Enjoy it, no guilt. Meals you log today are tagged as cheat and don’t count against your plan or streak. Back on track tomorrow 💪</T>}
           {SLOTS.map((s) => (
             <MealSlot key={s.key} slot={s} planSlot={plan?.slots?.find((x) => x.key === s.key)} meals={meals.filter((m) => m.slot === s.key)}
-              userId={userId} date={date} isCoach={isCoach} cheatDay={cheatDay} onChange={load} />
+              userId={userId} date={date} isCoach={isCoach} cheatDay={cheatDay} onChange={changed} />
           ))}
         </Card>
       )}
@@ -217,14 +220,34 @@ function MealSlot({ slot, planSlot, meals, userId, date, isCoach, cheatDay = fal
   };
   const close = async () => { if (photo) await reset(true); setOpen(false); };
 
-  const setFollowed = async (m, v) => { await supabase.from('meal_logs').update({ followed: v, cheat: false }).eq('id', m.id); onChange(); if (v && m.followed !== true) cheer('on_plan'); };
-  const toggleCheat = async (m) => { const v = !m.cheat; await supabase.from('meal_logs').update({ cheat: v, ...(v ? { followed: null } : {}) }).eq('id', m.id); onChange(); if (v) cheer('cheat'); };
+  const setFollowed = async (m, v) => {
+    const { error } = await supabase.from('meal_logs').update({ followed: v, cheat: false }).eq('id', m.id);
+    if (error) return cheer('error', error.message);
+    onChange(); cheer(v && m.followed !== true ? 'on_plan' : 'saved');
+  };
+  const toggleCheat = async (m) => {
+    const v = !m.cheat;
+    const { error } = await supabase.from('meal_logs').update({ cheat: v, ...(v ? { followed: null } : {}) }).eq('id', m.id);
+    if (error) return cheer('error', error.message);
+    onChange(); cheer(v ? 'cheat' : 'saved');
+  };
+  // One tap on an option from the diet plan logs it straight away as an on-plan meal.
+  const quickLog = async (item) => {
+    setBusy('Saving…');
+    const { error } = await supabase.from('meal_logs').insert({ user_id: userId, log_date: date, slot: slot.key, description: item, followed: cheat ? null : true, cheat });
+    setBusy('');
+    if (error) return cheer('error', error.message);
+    await close(); onChange(); cheer(isCoach ? 'update' : cheat ? 'cheat' : 'on_plan');
+  };
   const del = (m) => Alert.alert('Delete this meal?', m.description || '', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: async () => {
+    const { error } = await supabase.from('meal_logs').delete().eq('id', m.id);
+    if (error) return cheer('error', error.message);
     if (m.photo_path) await supabase.storage.from('media').remove([m.photo_path]);
-    await supabase.from('meal_logs').delete().eq('id', m.id); onChange();
+    onChange(); cheer('removed');
   } }]);
   const saveEdit = async () => {
-    await supabase.from('meal_logs').update({ description: editing.description || null, kcal: num(editing.kcal), protein_g: num(editing.protein_g), carbs_g: num(editing.carbs_g), fat_g: num(editing.fat_g) }).eq('id', editing.id);
+    const { error } = await supabase.from('meal_logs').update({ description: editing.description || null, kcal: num(editing.kcal), protein_g: num(editing.protein_g), carbs_g: num(editing.carbs_g), fat_g: num(editing.fat_g) }).eq('id', editing.id);
+    if (error) return cheer('error', error.message);
     setEditing(null); onChange(); cheer('update');
   };
 
@@ -266,7 +289,13 @@ function MealSlot({ slot, planSlot, meals, userId, date, isCoach, cheatDay = fal
 
       {open && (
         <View style={{ gap: 10, paddingTop: 6 }}>
-          {planSlot?.items?.length > 0 && <Chips>{planSlot.items.slice(0, 6).map((it) => <Chip key={it} small label={it} onPress={() => setDesc(it)} />)}</Chips>}
+          {planSlot?.items?.length > 0 && (
+            <View style={{ gap: 6 }}>
+              <T small muted>From your plan, tap to log it:</T>
+              <Chips>{planSlot.items.slice(0, 8).map((it) => <Chip key={it} label={`+ ${it}`} onPress={() => quickLog(it)} style={{ borderColor: C.ink, borderWidth: 2 }} />)}</Chips>
+              <T small muted>Had something else? Type it or add a photo below.</T>
+            </View>
+          )}
           {planSlot?.avoid?.length > 0 && <T small style={{ color: C.red }}>Avoid: {planSlot.avoid.join(', ')}</T>}
           {photo && (
             <Row style={{ alignItems: 'flex-start' }}>
@@ -315,10 +344,11 @@ function Habits({ value, onSave, has }) {
     onSave(next).then((ok) => {
       if (!ok) return;
       if (k === 'water_glasses' && v >= 8 && water < 8) cheer('water');
-      if (k !== 'water_glasses' && v && HABITS.every((h) => next.habits[h.key])) cheer('habits_all');
+      else if (k !== 'water_glasses' && v && HABITS.every((h) => next.habits[h.key])) cheer('habits_all');
+      else cheer('saved');
     });
   };
-  const setSupp = (k, v) => onSave({ ...value, supplements: { ...(value.supplements || {}), [k]: v } });
+  const setSupp = (k, v) => onSave({ ...value, supplements: { ...(value.supplements || {}), [k]: v } }).then((ok) => ok && cheer('saved'));
   return (
     <Card title="Habits & supplements">
       {has('habits') && (

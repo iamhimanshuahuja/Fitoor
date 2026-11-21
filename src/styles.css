@@ -1412,3 +1412,8 @@ input[type=radio] { width: 20px !important; height: 20px; min-height: 0; padding
 .topbar-me.has-pic.active { background: none; }
 .topbar-me.has-pic.active .avatar-pic { box-shadow: 0 0 0 3px var(--lime); }
 .me-avatar-btn { padding-left: 6px; }
+
+.cheer.cheer-bad { background: #FFD6DC; }
+.plan-quick { display: flex; flex-direction: column; gap: 6px; }
+.chip.chip-log { display: inline-flex; align-items: center; gap: 4px; background: #fff; border: 2px solid var(--ink); font-weight: 700; min-height: 36px; }
+.chip.chip-log:hover:not(:disabled) { background: var(--lime); }

@@ -58,6 +58,7 @@ export default function DayView({ userId, date, mode = 'user', features }) {
   }, [userId, date]);
 
   useEffect(() => { load(); }, [load]);
+  const changed = useCallback(() => window.dispatchEvent(new Event('ft:data-changed')), []);
   useEffect(() => { window.addEventListener('ft:data-changed', load); return () => window.removeEventListener('ft:data-changed', load); }, [load]);
 
   const kcal = meals.reduce((s, m) => s + (Number(m.kcal) || 0), 0);
@@ -74,7 +75,8 @@ export default function DayView({ userId, date, mode = 'user', features }) {
     if (!next.cheat_day) delete next.cheat_day;
     setHabits({ ...habits, habits: next });
     const { error } = await supabase.from('habit_logs').upsert({ user_id: userId, log_date: date, habits: next, supplements: habits.supplements || {} }, { onConflict: 'user_id,log_date' });
-    if (!error && next.cheat_day && !isCoach) cheer('cheat_day');
+    if (error) { setHabits(habits); return cheer('error', error.message); }
+    changed(); cheer(next.cheat_day && !isCoach ? 'cheat_day' : 'saved');
   };
 
   if (loading) return <div className="center-pad"><Spinner size={24} /></div>;
@@ -96,7 +98,7 @@ export default function DayView({ userId, date, mode = 'user', features }) {
         {has('gym') && <div className="pill"><Dumbbell size={16} /> {workouts.length ? workouts.map((w) => w.day_label || 'Workout').join(', ') : 'No workout'}</div>}
       </div>
 
-      {has('weight') && <WeightQuick userId={userId} date={date} weight={weight} editable={editable} onSaved={load} setLightbox={setLightbox} />}
+      {has('weight') && <WeightQuick userId={userId} date={date} weight={weight} editable={editable} onSaved={changed} setLightbox={setLightbox} />}
 
       {juiceDay && (
         <JuiceTracker group={juiceGroup} value={habits.habits?.juices || {}} editable
@@ -106,7 +108,8 @@ export default function DayView({ userId, date, mode = 'user', features }) {
             setHabits({ ...habits, habits: next });
             const { error } = await supabase.from('habit_logs').upsert({ user_id: userId, log_date: date, habits: next, supplements: habits.supplements || {} }, { onConflict: 'user_id,log_date' });
             const n = (j) => ['red', 'smoothie_am', 'green1', 'smoothie_pm', 'white'].filter((k) => j?.[k]).length + (j?.green2 || j?.tangy ? 1 : 0);
-            if (!error && n(juices) === 6 && n(habits.habits?.juices) < 6) cheer('juice_done');
+            if (error) return cheer('error', error.message);
+            changed(); cheer(n(juices) === 6 && n(habits.habits?.juices) < 6 ? 'juice_done' : 'saved');
           }} />
       )}
 
@@ -117,11 +120,11 @@ export default function DayView({ userId, date, mode = 'user', features }) {
             <div className="slots">
               {SLOTS.filter((s) => meals.some((m) => m.slot === s.key)).map((s) => (
                 <MealSlot key={s.key} slot={s} planSlot={null} meals={meals.filter((m) => m.slot === s.key)} userId={userId} date={date}
-                  editable={isCoach} admin={isCoach} has={has} onChange={load} setLightbox={setLightbox} />
+                  editable={isCoach} admin={isCoach} has={has} onChange={changed} setLightbox={setLightbox} />
               ))}
             </div>
           )}
-          {isCoach && !meals.length && <MealSlot slot={SLOTS.find((s) => s.key === 'other') || SLOTS.at(-1)} planSlot={null} meals={[]} userId={userId} date={date} editable admin has={has} onChange={load} setLightbox={setLightbox} />}
+          {isCoach && !meals.length && <MealSlot slot={SLOTS.find((s) => s.key === 'other') || SLOTS.at(-1)} planSlot={null} meals={[]} userId={userId} date={date} editable admin has={has} onChange={changed} setLightbox={setLightbox} />}
         </Card>
       )}
 
@@ -136,7 +139,7 @@ export default function DayView({ userId, date, mode = 'user', features }) {
               if (s.key === 'other' && !list.length && !editable) return null;
               return (
                 <MealSlot key={s.key} slot={s} planSlot={ps} meals={list} userId={userId} date={date} cheatDay={cheatDay}
-                  editable={editable} admin={isCoach} has={has} onChange={load} setLightbox={setLightbox} />
+                  editable={editable} admin={isCoach} has={has} onChange={changed} setLightbox={setLightbox} />
               );
             })}
             {!editable && !meals.length && <Empty>No meals logged this day.</Empty>}
@@ -145,12 +148,12 @@ export default function DayView({ userId, date, mode = 'user', features }) {
       )}
 
       {(has('habits') || has('supplements')) && (
-        <HabitsCard userId={userId} date={date} value={habits} editable={editable} has={has} onSaved={load} />
+        <HabitsCard userId={userId} date={date} value={habits} editable={editable} has={has} onSaved={changed} />
       )}
 
       {has('gym') && (
         <Card title="Workout" action={!isCoach && <Link to="/app/gym" className="btn btn-soft btn-sm"><Plus size={16} /> Log workout</Link>}>
-          {workouts.length ? workouts.map((w) => <WorkoutSummary key={w.id} w={w} editable onChange={load} />) : <Empty>No workout logged.</Empty>}
+          {workouts.length ? workouts.map((w) => <WorkoutSummary key={w.id} w={w} editable onChange={changed} />) : <Empty>No workout logged.</Empty>}
         </Card>
       )}
 
@@ -262,7 +265,7 @@ function WeightQuick({ userId, date, weight, editable, onSaved, setLightbox }) {
     const { error } = await supabase.from('weight_logs').upsert(row, { onConflict: 'user_id,log_date' });
     setBusy(false);
     setMsg(error ? error.message : '');
-    if (!error) { onSaved(); cheer('weight'); }
+    if (error) cheer('error', error.message); else { onSaved(); cheer('weight'); }
   };
 
   const fromPhoto = async (file) => {
@@ -366,7 +369,7 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
       kcal: num(nutr.kcal), protein_g: num(nutr.protein_g), carbs_g: num(nutr.carbs_g), fat_g: num(nutr.fat_g),
     });
     setBusy(false);
-    if (error) return setErr(error.message);
+    if (error) { setErr(error.message); return cheer('error', error.message); }
     setPhoto(null); setAi(null); setNutr(EMPTY_N); setDesc(''); setOpen(false); onChange();
     if (!admin) cheer(cheat ? 'cheat' : followed === true ? 'on_plan' : 'meal');
     else cheer('update');
@@ -375,15 +378,35 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
   const [editing, setEditing] = useState(null);
   const saveEdit = async () => {
     const num = (v) => (v === '' || v == null ? null : Number(v));
-    await supabase.from('meal_logs').update({ description: editing.description || null, kcal: num(editing.kcal), protein_g: num(editing.protein_g), carbs_g: num(editing.carbs_g), fat_g: num(editing.fat_g) }).eq('id', editing.id);
+    const { error } = await supabase.from('meal_logs').update({ description: editing.description || null, kcal: num(editing.kcal), protein_g: num(editing.protein_g), carbs_g: num(editing.carbs_g), fat_g: num(editing.fat_g) }).eq('id', editing.id);
+    if (error) return cheer('error', error.message);
     setEditing(null); onChange(); cheer('update');
   };
-  const toggleMealCheat = async (m) => { const v = !m.cheat; await supabase.from('meal_logs').update({ cheat: v, ...(v ? { followed: null } : {}) }).eq('id', m.id); onChange(); if (v && !admin) cheer('cheat'); };
-  const setFollowed = async (m, v) => { const { error } = await supabase.from('meal_logs').update({ followed: v, cheat: false }).eq('id', m.id); onChange(); if (!error && v && m.followed !== true) cheer('on_plan'); };
+  const toggleMealCheat = async (m) => {
+    const v = !m.cheat;
+    const { error } = await supabase.from('meal_logs').update({ cheat: v, ...(v ? { followed: null } : {}) }).eq('id', m.id);
+    if (error) return cheer('error', error.message);
+    onChange(); cheer(v && !admin ? 'cheat' : 'saved');
+  };
+  const setFollowed = async (m, v) => {
+    const { error } = await supabase.from('meal_logs').update({ followed: v, cheat: false }).eq('id', m.id);
+    if (error) return cheer('error', error.message);
+    onChange(); cheer(v && m.followed !== true && !admin ? 'on_plan' : 'saved');
+  };
   const del = async (m) => {
     if (!confirm('Delete this meal entry?')) return;
+    const { error } = await supabase.from('meal_logs').delete().eq('id', m.id);
+    if (error) return cheer('error', error.message);
     if (m.photo_path) await supabase.storage.from('media').remove([m.photo_path]);
-    await supabase.from('meal_logs').delete().eq('id', m.id); onChange();
+    onChange(); cheer('removed');
+  };
+  // One tap on an option from the diet plan logs it straight away as an on-plan meal (numbers can be added later with ✏️).
+  const quickLog = async (item) => {
+    setBusy(true); setErr('');
+    const { error } = await supabase.from('meal_logs').insert({ user_id: userId, log_date: date, slot: slot.key, description: item, followed: cheat ? null : true, cheat });
+    setBusy(false);
+    if (error) { setErr(error.message); return cheer('error', error.message); }
+    setOpen(false); onChange(); cheer(admin ? 'update' : cheat ? 'cheat' : 'on_plan');
   };
 
   return (
@@ -435,8 +458,12 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
       {open && editable && (
         <div className="slot-add">
           {planSlot?.items?.length > 0 && (
-            <div className="plan-hints">
-              {planSlot.items.slice(0, 6).map((it) => <button key={it} className="chip" onClick={() => setDesc(it)}>{it}</button>)}
+            <div className="plan-quick">
+              <small className="muted">From your plan, tap to log it:</small>
+              <div className="plan-hints">
+                {planSlot.items.slice(0, 8).map((it) => <button key={it} type="button" className="chip chip-log" disabled={busy} onClick={() => quickLog(it)}><Plus size={13} /> {it}</button>)}
+              </div>
+              <small className="muted">Had something else? Type it or add a photo below.</small>
             </div>
           )}
           {planSlot?.avoid?.length > 0 && <p className="avoid">Avoid: {planSlot.avoid.join(', ')}</p>}
@@ -480,11 +507,12 @@ function HabitsCard({ userId, date, value, editable, has, onSaved }) {
     setV(next);
     if (!editable) return;
     const { error } = await supabase.from('habit_logs').upsert({ user_id: userId, log_date: date, habits: next.habits || {}, supplements: next.supplements || {} }, { onConflict: 'user_id,log_date' });
+    if (error) { setV(prev); return cheer('error', error.message); }
     onSaved && onSaved();
-    if (error) return;
     const done = (x) => HABITS.filter((h) => x?.habits?.[h.key]).length;
     if (done(next) === HABITS.length && done(prev) < HABITS.length) cheer('habits_all');
     else if (Number(next.habits?.water_glasses || 0) >= 8 && Number(prev.habits?.water_glasses || 0) < 8) cheer('water');
+    else cheer('saved');
   };
   const water = Number(v.habits?.water_glasses || 0);
   return (

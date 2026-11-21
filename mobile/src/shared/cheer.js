@@ -24,14 +24,18 @@ export const CHEERS = {
   recipe_review: ['🍽️', 'Sent for review', ['A coach will check it soon. Thanks for sharing!', 'Nice one! It goes live once a coach approves it.']],
   recipe_public: ['🌍', 'Recipe is live', ['Published on fitoor.life. Someone’s dinner just got sorted.', 'Live on the website. Share the link!']],
   update: ['✅', 'Updated', ['All set. Keep going.', 'Nice. Every detail helps your coach help you.']],
+  saved: ['✅', 'Saved', ['Ticked off. Nice.', 'One more box checked.', 'Small wins add up.', 'Done and dusted.']],
+  removed: ['🗑️', 'Removed', ['Gone. Your day is updated.']],
 };
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
-export function cheerText(kind) {
+export function cheerText(kind, text) {
+  if (kind === 'error') return { emoji: '⚠️', title: 'Not saved', line: text || 'Something went wrong. Please try again.', bad: true };
   const [emoji, title, lines] = CHEERS[kind] || CHEERS.update;
   return { emoji, title, line: pick(lines) };
 }
 
-export function cheer(kind = 'update') {
-  emit('cheer', { kind });
+/** cheer('meal') after a save; cheer('error', message) when a save fails. */
+export function cheer(kind = 'update', text) {
+  emit('cheer', { kind, text });
 }

@@ -20,7 +20,7 @@ export default function CheerToast() {
       timer.current = setTimeout(() => Animated.timing(y, { toValue: 140, duration: 220, useNativeDriver: true }).start(() => setMsg(null)), 2800);
     };
     const offs = [
-      on('cheer', ({ kind } = {}) => show(isAdmin ? { emoji: '✅', title: 'Saved', line: 'Updated for your client.' } : cheerText(kind))),
+      on('cheer', ({ kind, text } = {}) => { const c = cheerText(kind, text); show(c.bad ? { ...c, tone: 'bad' } : isAdmin ? { emoji: '✅', title: kind === 'removed' ? 'Removed' : 'Saved', line: 'Updated for your client.' } : c); }),
       on('toast', ({ text, tone } = {}) => show({ emoji: tone === 'bad' ? '⚠️' : '✅', title: text, line: '', tone })),
     ];
     return () => offs.forEach((f) => f());

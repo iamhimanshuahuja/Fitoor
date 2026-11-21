@@ -14,7 +14,7 @@ for (const f of FILES) {
   s = s.replace(/from '\.\/supabase'/g, "from '../lib/supabase'")
        .replace(/from '\.\/ai'/g, "from '../lib/ai'")
        // browser events → tiny cross-platform emitter
-       .replace(/window\.dispatchEvent\(new CustomEvent\('ft:cheer', \{ detail: \{ kind \} \}\)\);?/g, "emit('cheer', { kind });")
+       .replace(/window\.dispatchEvent\(new CustomEvent\('ft:cheer', \{ detail: \{ kind(, text)? \} \}\)\);?/g, (_m, t) => `emit('cheer', { kind${t || ''} });`)
        .replace(/window\.dispatchEvent\(new Event\('ft:data-changed'\)\)/g, "emit('data-changed')");
   if (/emit\(/.test(s)) s = "import { emit } from '../lib/events';\n" + s;
   writeFileSync(join(OUT, `${f}.js`), banner(f) + s);
