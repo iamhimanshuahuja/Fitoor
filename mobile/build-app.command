@@ -3,10 +3,17 @@
 cd "$(dirname "$0")" || exit 1
 set -e
 echo "== Fitoor mobile =="
+if [ ! -t 0 ] && [ -z "$EXPO_TOKEN" ] && ! grep -q '^EXPO_TOKEN=' .env 2>/dev/null; then
+  echo "This needs a real Terminal (it asks you to log in to Expo and pick a build)."
+  echo "Open Terminal and run:  cd \"$(pwd)\" && ./build-app.command"
+  echo "(Or add EXPO_TOKEN=... from expo.dev → Account settings → Access tokens to mobile/.env)"
+  exit 1
+fi
 if [ ! -f .env ]; then cp .env.example .env; echo "Created mobile/.env — paste the anon key into it, then run this again."; open -e .env; exit 1; fi
 npm install
 npx expo install --fix || true
 npx expo-doctor || true
+set -a; source .env; set +a
 npx eas-cli@latest whoami >/dev/null 2>&1 || npx eas-cli@latest login
 grep -q '"projectId"' app.json || npx eas-cli@latest init --non-interactive --force || npx eas-cli@latest init
 set -a; source .env; set +a
