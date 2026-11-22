@@ -7,6 +7,8 @@ import { DAY_LABELS, MUSCLES, EQUIPMENT, pretty } from '../../lib/constants';
 import { today, fmtLong, fmt, addDays } from '../../lib/dates';
 import { uploadMedia, toBase64 } from '../../lib/media';
 import { runAI } from '../../lib/ai';
+import { parseSets, fmtSet, fmtSets, isPR, loadBests, saveWorkout } from '../../lib/workouts';
+import PRBoard from '../../components/PRBoard';
 import { Card, Empty, PhotoInput, Spinner, Stat, Tabs, DateStrip, useToast } from '../../components/ui';
 import { WorkoutSummary } from '../../components/DayView';
 import { DailyBars, TrendLine, COLORS } from '../../components/Charts';
@@ -34,6 +36,24 @@ function WorkoutLogger({ userId, onSaved }) {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiResult, setAiResult] = useState(null);
   const [toast, show] = useToast();
+  const [bests, setBests] = useState({});
+  const [last, setLast] = useState({}); // exercise_id → { date, sets }
+  useEffect(() => {
+    loadBests(userId).then(setBests);
+    supabase.from('workout_sets').select('exercise_id, set_no, reps, weight_kg, duration_min, incline, distance_km, workouts!inner(log_date)')
+      .eq('user_id', userId).order('created_at', { ascending: false }).limit(600)
+      .then(({ data }) => {
+        const m = {};
+        (data || []).forEach((r) => {
+          const d = r.workouts?.log_date;
+          if (!m[r.exercise_id]) m[r.exercise_id] = { date: d, sets: [] };
+          if (m[r.exercise_id].date === d) m[r.exercise_id].sets.push(r);
+        });
+        Object.values(m).forEach((v) => v.sets.sort((a, b) => a.set_no - b.set_no));
+        setLast(m);
+      });
+  }, [userId]);
+  const [quick, setQuick] = useState({}); // item index → typed sets text
 
   const filtered = exercises.filter((e) =>
     (!muscle || e.muscle_group === muscle) && (!q || e.name.toLowerCase().includes(q.toLowerCase())));
@@ -51,6 +71,16 @@ function WorkoutLogger({ userId, onSaved }) {
   };
   const upd = (i, j, k, v) => setItems(items.map((it, a) => a !== i ? it : { ...it, sets: it.sets.map((s, b) => b !== j ? s : { ...s, [k]: v }) }));
   const addSet = (i) => setItems(items.map((it, a) => a !== i ? it : { ...it, sets: [...it.sets, { ...it.sets.at(-1) }] }));
+  const applyQuick = (i) => {
+    const sets = parseSets(quick[i]);
+    if (!sets.length) return show('Type sets like 12x17.5, 10x25, 6x30', 'bad');
+    setItems(items.map((it, a) => (a !== i ? it : { ...it, sets: sets.map((x) => ({ reps: x.reps ?? '', weight_kg: x.weight_kg ?? '' })) })));
+    setQuick({ ...quick, [i]: '' });
+  };
+  const copyLast = (i) => {
+    const l = last[items[i].exercise.id]; if (!l) return;
+    setItems(items.map((it, a) => (a !== i ? it : { ...it, sets: l.sets.map((x) => ({ reps: x.reps ?? '', weight_kg: x.weight_kg ?? '', duration_min: x.duration_min ?? '', incline: x.incline ?? '', distance_km: x.distance_km ?? '' })) })));
+  };
   const delSet = (i, j) => setItems(items.map((it, a) => a !== i ? it : { ...it, sets: it.sets.filter((_, b) => b !== j) }).filter((it) => it.sets.length));
 
   const machinePhoto = async (file) => {
@@ -75,18 +105,18 @@ function WorkoutLogger({ userId, onSaved }) {
   const save = async () => {
     if (!items.length) return show('Add at least one exercise', 'bad');
     setBusy(true);
-    const { data: w, error } = await supabase.from('workouts').insert({ user_id: userId, log_date: date, day_label: label || null, duration_min: duration || null, notes: notes || null }).select().single();
-    if (error) { setBusy(false); return show(error.message, 'bad'); }
-    const sets = items.flatMap((it) => it.sets.map((s, n) => ({
-      workout_id: w.id, user_id: userId, exercise_id: it.exercise.id, set_no: n + 1,
-      reps: s.reps ? Number(s.reps) : null, weight_kg: s.weight_kg ? Number(s.weight_kg) : null,
-      duration_min: s.duration_min ? Number(s.duration_min) : null, incline: s.incline ? Number(s.incline) : null, distance_km: s.distance_km ? Number(s.distance_km) : null,
-    })));
-    const { error: e2 } = await supabase.from('workout_sets').insert(sets);
+    try {
+      const prsHit = items.filter((it) => isPR(it.sets, bests[it.exercise.id]) && bests[it.exercise.id]).map((it) => it.exercise.name);
+      const { merged } = await saveWorkout(userId, date, {
+        day_label: label || null, duration_min: duration || null, notes: notes || null,
+        items: items.map((it) => ({ exercise_id: it.exercise.id, sets: it.sets })),
+      });
+      setItems([]); setNotes(''); setDuration(''); setQuick({});
+      if (prsHit.length) show(`🏆 New PR: ${prsHit.join(', ')}!`);
+      cheer('workout'); onSaved(); loadBests(userId).then(setBests);
+      if (merged) show(`Added to your ${label || ''} workout for that day`.replace('  ', ' '));
+    } catch (e) { show(e.message, 'bad'); }
     setBusy(false);
-    if (e2) return show(e2.message, 'bad');
-    setItems([]); setNotes(''); setDuration(''); setLabel('');
-    cheer('workout'); onSaved();
   };
 
   return (
@@ -94,6 +124,7 @@ function WorkoutLogger({ userId, onSaved }) {
       {toast}
       <Card title="Log a workout">
         <DateStrip value={date} onChange={setDate} />
+        <p className="small muted">Pick the day (Push, Pull…), add exercises and sets. Saving again on the same day and label adds to that workout; re-logging an exercise replaces its sets.</p>
         <div className="chips-row">
           {DAY_LABELS.map((d) => <button key={d} className={`chip ${label === d ? 'on' : ''}`} onClick={() => setLabel(label === d ? '' : d)}>{d}</button>)}
         </div>
@@ -103,7 +134,21 @@ function WorkoutLogger({ userId, onSaved }) {
             <div className="ex-head">
               <b>{it.exercise.name}</b>
               <small className="muted">{pretty(it.exercise.muscle_group)} · {pretty(it.exercise.equipment)}</small>
+              {bests[it.exercise.id] && <small className="pr-hint">🏆 PR {fmtSet({ reps: bests[it.exercise.id].reps, weight_kg: bests[it.exercise.id].kg })}</small>}
+              {isPR(it.sets, bests[it.exercise.id]) && bests[it.exercise.id] && <span className="tag pr-tag">New PR!</span>}
             </div>
+            {last[it.exercise.id] && (
+              <div className="ex-last small muted">Last time ({fmt(last[it.exercise.id].date)}): {fmtSets(last[it.exercise.id].sets)}
+                <button type="button" className="link-btn" onClick={() => copyLast(i)}>Copy</button>
+              </div>
+            )}
+            {it.exercise.kind !== 'cardio' && (
+              <div className="ex-quick">
+                <input value={quick[i] || ''} onChange={(e) => setQuick({ ...quick, [i]: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyQuick(i); } }}
+                  placeholder="Quick: 12x17.5, 10x25, 6x30" aria-label={`Type sets for ${it.exercise.name}`} />
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => applyQuick(i)}>Fill</button>
+              </div>
+            )}
             <table className="sets">
               <thead><tr><th>#</th>{it.exercise.kind === 'cardio' ? <><th>Min</th><th>Incline %</th><th>Km</th></> : <><th>Reps</th><th>Kg</th></>}<th></th></tr></thead>
               <tbody>
@@ -276,6 +321,7 @@ export default function Gym() {
   return (
     <div className="page">
       <div className="page-head"><h1>Gym</h1><Tabs tabs={[{ key: 'log', label: 'Log' }, { key: 'progress', label: 'Progress' }]} value={tab} onChange={setTab} /></div>
+      <PRBoard userId={user.id} refreshKey={key} />
       {tab === 'log' ? <WorkoutLogger userId={user.id} onSaved={() => { setKey(key + 1); }} /> : <GymPanel userId={user.id} refreshKey={key} />}
     </div>
   );

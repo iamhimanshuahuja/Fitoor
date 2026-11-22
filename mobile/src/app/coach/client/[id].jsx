@@ -10,6 +10,7 @@ import { cheer } from '../../../shared/cheer';
 import DayView from '../../../components/DayView';
 import DateStrip from '../../../components/DateStrip';
 import ProgressPanel from '../../../components/ProgressPanel';
+import AskAI from '../../../components/AskAI';
 import WeightPanel from '../../../components/WeightPanel';
 import GymPanel from '../../../components/GymPanel';
 import LabsPanel from '../../../components/LabsPanel';
@@ -50,7 +51,7 @@ export default function ClientDetail() {
       <Chips>{TABS.map(([k, l]) => <Chip key={k} label={l} on={tab === k} onPress={() => setTab(k)} />)}</Chips>
       {tab === 'day' && <><DateStrip value={date} onChange={setDate} /><DayView userId={id} date={date} mode="admin" /></>}
       {tab === 'cal' && <MonthCalendar userId={id} onOpen={(d) => { setDate(d); setTab('day'); }} />}
-      {tab === 'progress' && <ProgressPanel userId={id} profile={p} />}
+      {tab === 'progress' && <><AskAI userId={id} about="client" name={p?.full_name} /><ProgressPanel userId={id} profile={p} /></>}
       {tab === 'weight' && <WeightPanel userId={id} profile={p} />}
       {tab === 'gym' && <GymPanel userId={id} />}
       {tab === 'labs' && <LabsPanel userId={id} />}

@@ -9,6 +9,7 @@ import { cheer } from '../shared/cheer';
 import { DAY_LABELS, MUSCLES, pretty } from '../shared/constants';
 import { today, addDays, fmtLong } from '../shared/dates';
 import { notifyDataChanged } from '../shared/chatLog';
+import { parseSets, fmtSet, fmtSets, isPR, loadBests, prList, saveWorkout } from '../shared/workouts';
 import { Btn, Card, Chip, Chips, Empty, Field, NumField, Row, Spinner, Stat, T } from './ui';
 import { C } from '../theme';
 import DateField from './DateField';
@@ -36,15 +37,34 @@ export default function GymPanel({ userId }) {
   const [busy, setBusy] = useState('');
   const [machine, setMachine] = useState(null);
   const [hist, setHist] = useState(null);
+  const [bests, setBests] = useState({});
+  const [quick, setQuick] = useState({});
 
   const loadHist = useCallback(async () => {
     const { data } = await supabase.from('workouts').select('*, workout_sets(*, exercises(name, kind, muscle_group))').eq('user_id', userId).gte('log_date', addDays(today(), -90)).order('log_date', { ascending: false });
     setHist(data || []);
+    setBests(await loadBests(userId));
   }, [userId]);
   useEffect(() => { loadHist(); }, [loadHist]);
   useEffect(() => on('data-changed', loadHist), [loadHist]);
 
   const addEx = (ex) => { setRows([...rows, { exercise: ex, sets: [blankSet()] }]); setQ(''); };
+  // Last session's sets for an exercise (from 90-day history, before the chosen date).
+  const lastOf = (exId) => {
+    for (const w of hist || []) {
+      if (w.log_date >= date) continue;
+      const ss = (w.workout_sets || []).filter((x) => x.exercise_id === exId).sort((a, b) => a.set_no - b.set_no);
+      if (ss.length) return { date: w.log_date, sets: ss };
+    }
+    return null;
+  };
+  const fillQuick = (ri) => {
+    const parsed = parseSets(quick[ri]);
+    if (!parsed.length) return Alert.alert('Type sets like 12x20, 10x25, 8x30');
+    setRows(rows.map((r, i) => i !== ri ? r : { ...r, sets: parsed.map((p) => ({ ...blankSet(), reps: p.reps ?? '', weight_kg: p.weight_kg ?? '' })) }));
+    setQuick({ ...quick, [ri]: '' });
+  };
+  const copyLast = (ri, last) => setRows(rows.map((r, i) => i !== ri ? r : { ...r, sets: last.sets.map((x) => ({ ...blankSet(), reps: x.reps ?? '', weight_kg: x.weight_kg ?? '', duration_min: x.duration_min ?? '', incline: x.incline ?? '', distance_km: x.distance_km ?? '' })) }));
   const setSet = (ri, si, k, v) => setRows(rows.map((r, i) => i !== ri ? r : { ...r, sets: r.sets.map((s, j) => j !== si ? s : { ...s, [k]: v }) }));
   const addSet = (ri) => setRows(rows.map((r, i) => i !== ri ? r : { ...r, sets: [...r.sets, { ...r.sets.at(-1) }] }));
   const delRow = (ri) => setRows(rows.filter((_, i) => i !== ri));
@@ -52,14 +72,14 @@ export default function GymPanel({ userId }) {
   const save = async () => {
     if (!rows.length && !label) return Alert.alert('Add an exercise or a day label');
     setBusy('Saving…');
-    const { data: w, error } = await supabase.from('workouts').insert({ user_id: userId, log_date: date, day_label: label || null, duration_min: n(dur), notes: notes || null }).select().single();
-    if (error) { setBusy(''); return Alert.alert('Not saved', error.message); }
-    const sets = rows.flatMap((r) => r.sets.map((s, j) => ({ workout_id: w.id, user_id: userId, exercise_id: r.exercise.id, set_no: j + 1,
-      reps: n(s.reps), weight_kg: n(s.weight_kg), duration_min: n(s.duration_min), incline: n(s.incline), distance_km: n(s.distance_km) })))
-      .filter((s) => s.reps || s.duration_min || s.distance_km);
-    if (sets.length) { const r = await supabase.from('workout_sets').insert(sets); if (r.error) Alert.alert('Some sets not saved', r.error.message); }
-    setBusy(''); setRows([]); setLabel(''); setDur(''); setNotes('');
-    cheer('workout'); notifyDataChanged(); loadHist();
+    try {
+      const items = rows.map((r) => ({ exercise_id: r.exercise.id, sets: r.sets.filter((x) => x.reps || x.weight_kg || x.duration_min || x.distance_km) }));
+      await saveWorkout(userId, date, { day_label: label, duration_min: dur, notes, items });
+      setRows([]); setDur(''); setNotes(''); setQuick({});
+      cheer('workout');
+      notifyDataChanged(); loadHist();
+    } catch (e) { cheer('error', e.message); }
+    setBusy('');
   };
 
   const scanMachine = async () => {
@@ -79,8 +99,7 @@ export default function GymPanel({ userId }) {
 
   const found = exercises.filter((e) => (!muscle || e.muscle_group === muscle) && (!q || e.name.toLowerCase().includes(q.toLowerCase()))).slice(0, 12);
   const week = (hist || []).filter((w) => w.log_date >= addDays(today(), -6)).length;
-  const prs = {};
-  (hist || []).forEach((w) => (w.workout_sets || []).forEach((s) => { const nm = s.exercises?.name; if (nm && s.weight_kg && (!prs[nm] || s.weight_kg > prs[nm])) prs[nm] = Number(s.weight_kg); }));
+  const prs = prList(bests, today()).slice(0, 8);
 
   return (
     <View style={{ gap: 14 }}>
@@ -88,13 +107,34 @@ export default function GymPanel({ userId }) {
         <Stat label="Workouts this week" value={week} tone={C.lime} />
         <Stat label="Last 90 days" value={(hist || []).length} tone={C.sky} />
       </Row>
+      {prs.length > 0 && (
+        <Card title="🏆 Your PRs">
+          {prs.map((p) => (
+            <Row key={p.exercise_id} style={{ justifyContent: 'space-between' }}>
+              <T small style={{ flex: 1 }}>{p.name}{p.isNew ? '  🆕' : ''}</T>
+              <T small bold>{p.reps ? `${p.reps}×` : ''}{p.kg} kg</T>
+              <T small muted style={{ width: 82, textAlign: 'right' }}>1RM ~{p.e1rm}</T>
+            </Row>
+          ))}
+        </Card>
+      )}
       <Card title="Log a workout">
         <DateField label="Date" value={date} onChange={setDate} />
         <Chips>{DAY_LABELS.map((d) => <Chip key={d} small label={d} on={label === d} onPress={() => setLabel(label === d ? '' : d)} />)}</Chips>
         <Row gap={8}><NumField label="Minutes" value={dur} onChangeText={setDur} placeholder="e.g. 60" /></Row>
         {rows.map((r, ri) => (
           <View key={ri} style={{ borderWidth: 1.5, borderColor: C.line, borderRadius: 12, padding: 10, gap: 6 }}>
-            <Row style={{ justifyContent: 'space-between' }}><T bold style={{ flex: 1 }}>{r.exercise.name}</T><Chip small label="🗑" onPress={() => delRow(ri)} /></Row>
+            <Row style={{ justifyContent: 'space-between' }}><T bold style={{ flex: 1 }}>{r.exercise.name}{isPR(r.sets, bests[r.exercise.id]) ? '  🏆 New PR!' : ''}</T><Chip small label="🗑" onPress={() => delRow(ri)} /></Row>
+            {(() => { const last = lastOf(r.exercise.id); return last ? (
+              <Row gap={6}><T small muted style={{ flex: 1 }}>Last time: {fmtSets(last.sets)}</T><Chip small label="Copy" onPress={() => copyLast(ri, last)} /></Row>
+            ) : null; })()}
+            {bests[r.exercise.id] ? <T small muted>PR: {fmtSet({ reps: bests[r.exercise.id].reps, weight_kg: bests[r.exercise.id].kg })}</T> : null}
+            {r.exercise.kind !== 'cardio' && (
+              <Row gap={6} style={{ alignItems: 'flex-end' }}>
+                <View style={{ flex: 1 }}><Field label="Quick sets (reps x kg)" value={quick[ri] || ''} onChangeText={(v) => setQuick({ ...quick, [ri]: v })} placeholder="12x20, 10x25, 8x30" autoCapitalize="none" /></View>
+                <Btn small variant="ghost" title="Fill" onPress={() => fillQuick(ri)} />
+              </Row>
+            )}
             {r.sets.map((s, si) => (
               <Row key={si} gap={6}>
                 <T small style={{ width: 22 }}>#{si + 1}</T>
@@ -132,14 +172,13 @@ export default function GymPanel({ userId }) {
         <Btn title="Save workout" onPress={save} busy={busy === 'Saving…'} />
         {busy && busy !== 'Saving…' ? <T small muted>⏳ {busy}</T> : null}
       </Card>
-      {Object.keys(prs).length > 0 && (
-        <Card title="🏆 Best lifts (90 days)">{Object.entries(prs).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => <Row key={k} style={{ justifyContent: 'space-between' }}><T small style={{ flex: 1 }}>{k}</T><T small bold>{v} kg</T></Row>)}</Card>
-      )}
       <Card title="History">
         {!hist ? <Spinner /> : !hist.length ? <Empty>No workouts yet.</Empty> : hist.slice(0, 30).map((w) => (
           <Pressable key={w.id} onLongPress={() => del(w)} style={{ borderTopWidth: 1, borderTopColor: C.line, paddingTop: 8, gap: 2 }}>
             <T bold>{fmtLong(w.log_date)} · {w.day_label || 'Workout'}{w.duration_min ? ` · ${w.duration_min} min` : ''}</T>
-            <T small muted>{[...new Set((w.workout_sets || []).map((s) => s.exercises?.name).filter(Boolean))].join(', ') || '—'}</T>
+            {Object.values((w.workout_sets || []).slice().sort((a, b) => a.set_no - b.set_no).reduce((m, x) => { const k = x.exercises?.name || '—'; (m[k] = m[k] || { k, sets: [] }).sets.push(x); return m; }, {})).map(({ k, sets }) => (
+              <T key={k} small muted>{k}: {fmtSets(sets)}</T>
+            ))}
           </Pressable>
         ))}
         {hist?.length ? <T small muted>Long-press a workout to delete it.</T> : null}

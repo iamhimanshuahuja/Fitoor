@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { useTiers, inr } from '../lib/aiQuota';
 import { Plus, RotateCcw, Smartphone } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { Logo } from '../components/ui';
@@ -129,7 +130,7 @@ function GoalPicker() {
 }
 
 const FAQ = [
-  ['Is it free?', 'Yes, signing up is free. Your coach decides which features your plan includes.'],
+  ['Is it free?', 'Yes. The Free plan has every feature and 3 AI chat logs a day. Plus (₹999/month) and Pro (₹1,999/month) only add more AI. See Pricing above.'],
   ['Do I need to download an app?', 'No. Open it in your phone’s browser and add it to your home screen. It opens full-screen like an app and uses your camera directly.'],
   ['Does it work on iPhone?', 'Yes. In Safari tap Share → Add to Home Screen.'],
   ['Who can see my photos and reports?', 'Only you and your coach. Photos are stored privately and compressed before upload.'],
@@ -146,6 +147,7 @@ export default function Home() {
         <nav>
           <Link to="/recipes" className="h-navlink">Recipes</Link>
           <a href="#how" className="h-navlink">How it works</a>
+          <a href="#pricing" className="h-navlink">Pricing</a>
           <a href="#faq" className="h-navlink">FAQ</a>
           {dest ? (
             <Link className="btn btn-pop" to={dest}>Open app</Link>
@@ -242,6 +244,8 @@ export default function Home() {
         </div>
       </section>
 
+      <Pricing dest={dest} />
+
       <section className="h-faq" id="faq">
         <h2>Questions</h2>
         {FAQ.map(([q, a]) => (
@@ -263,5 +267,41 @@ export default function Home() {
         <p>Not medical advice. Talk to your doctor about lab results.</p>
       </footer>
     </div>
+  );
+}
+
+/* ---------- Pricing (tiers come from ai_tiers, managed by the super admin) ---------- */
+const FALLBACK_TIERS = [
+  { key: 'free', name: 'Free', price_inr: 0, chat_per_day: 3, can_ask: false },
+  { key: 'plus', name: 'Plus', price_inr: 999, chat_per_day: 19, can_ask: false },
+  { key: 'pro', name: 'Pro', price_inr: 1999, chat_per_day: 50, can_ask: true },
+];
+function Pricing({ dest }) {
+  const [tiers] = useTiers();
+  const { hash } = useLocation();
+  useEffect(() => { if (hash === '#pricing') document.getElementById('pricing')?.scrollIntoView(); }, [hash, tiers]);
+  const list = (tiers?.length ? tiers : FALLBACK_TIERS).filter((t) => t.active !== false);
+  const top = Math.max(...list.map((t) => t.price_inr));
+  return (
+    <section className="h-price" id="pricing">
+      <h2>Pricing</h2>
+      <p className="h-price-lede">Every plan gets the whole app: diet plan, meals, weight, gym, labs, calendar and your coach. You only pay for more AI.</p>
+      <div className="h-price-grid">
+        {list.map((t) => (
+          <article key={t.key} className={`h-price-card ${t.price_inr === top && list.length > 1 ? 'is-top' : ''}`}>
+            <h3>{t.name}</h3>
+            <p className="h-price-amt">{t.price_inr ? <>{inr(t.price_inr)}<span>/month</span></> : '₹0'}</p>
+            <ul>
+              <li><b>{t.chat_per_day}</b> AI chat logs a day</li>
+              <li>{t.can_ask ? 'Ask AI anything about your data, anywhere in the app' : 'Ask AI not included'}</li>
+              <li>All tracking features and coach notes</li>
+            </ul>
+            {t.blurb && <p className="h-price-blurb">{t.blurb}</p>}
+            <Link className={`btn ${t.price_inr ? 'btn-pop' : 'btn-primary'}`} to={dest || '/signup'}>{dest ? 'Open Fitoor' : t.price_inr ? `Start free, upgrade later` : 'Start free'}</Link>
+          </article>
+        ))}
+      </div>
+      <p className="h-price-note">Coaches get the same plans, and on Pro can ask AI about their clients. Upgrade from Me in the app; we confirm payment and switch it on. Limits reset at midnight.</p>
+    </section>
   );
 }

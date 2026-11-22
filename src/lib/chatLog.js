@@ -1,5 +1,6 @@
 import { SITE_KEYS } from './measure';
 import { supabase } from './supabase';
+import { saveWorkout } from './workouts';
 import { runAI } from './ai';
 import { today, addDays } from './dates';
 import { SLOTS, HABITS, SUPPLEMENTS, DAY_LABELS, MUSCLES, EQUIPMENT } from './constants';
@@ -140,19 +141,11 @@ export async function saveAction(userId, a, photoPath) {
       }
       ids.push(hit.id);
     }
-    const { data: w, error } = await supabase.from('workouts').insert({
-      user_id: userId, log_date: date, day_label: a.day_label || null, duration_min: n(a.duration_min), notes: a.notes || 'Logged by chat',
-    }).select().single();
-    if (error) throw error;
-    const sets = exs.flatMap((e, i) => (e.sets?.length ? e.sets : [{}]).map((s, k) => ({
-      workout_id: w.id, user_id: userId, exercise_id: ids[i], set_no: k + 1,
-      reps: n(s.reps), weight_kg: n(s.weight_kg), duration_min: n(s.duration_min), incline: n(s.incline), distance_km: n(s.distance_km),
-    })));
-    if (sets.length) {
-      const { error: e2 } = await supabase.from('workout_sets').insert(sets);
-      if (e2) throw e2;
-    }
-    return 'Workout saved 💪';
+    const { merged } = await saveWorkout(userId, date, {
+      day_label: a.day_label || null, duration_min: n(a.duration_min), notes: a.notes || null,
+      items: exs.map((e, i) => ({ exercise_id: ids[i], sets: e.sets || [] })),
+    });
+    return merged ? `Added to your ${a.day_label || ''} workout 💪`.replace('  ', ' ') : 'Workout saved 💪';
   }
   throw new Error('Unknown entry');
 }

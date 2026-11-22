@@ -181,6 +181,8 @@ function MealSlot({ slot, planSlot, meals, userId, date, isCoach, cheatDay = fal
   const { has } = useAuth();
   const [open, setOpen] = useState(false);
   const [desc, setDesc] = useState('');
+  const [picked, setPicked] = useState([]);
+  const [note, setNote] = useState('');
   const [nutr, setNutr] = useState({ kcal: '', protein_g: '', carbs_g: '', fat_g: '' });
   const [photo, setPhoto] = useState(null);
   const [ai, setAi] = useState(null);
@@ -191,8 +193,10 @@ function MealSlot({ slot, planSlot, meals, userId, date, isCoach, cheatDay = fal
   
   const reset = async (removePhoto) => {
     if (removePhoto && photo) await supabase.storage.from('media').remove([photo]);
-    setPhoto(null); setAi(null); setDesc(''); setNutr({ kcal: '', protein_g: '', carbs_g: '', fat_g: '' });
+    setPhoto(null); setAi(null); setDesc(''); setPicked([]); setNote(''); setNutr({ kcal: '', protein_g: '', carbs_g: '', fat_g: '' });
   };
+  const togglePick = (it) => setPicked((p) => (p.includes(it) ? p.filter((x) => x !== it) : [...p, it]));
+  const canSave = picked.length > 0 || desc.trim() || photo;
   const attach = async (source) => {
     const img = await pickImage(source); if (!img) return;
     setBusy(has('ai') ? 'Uploading & guessing calories…' : 'Uploading photo…');
@@ -212,12 +216,14 @@ function MealSlot({ slot, planSlot, meals, userId, date, isCoach, cheatDay = fal
     setBusy('');
   };
   const add = async () => {
-    if (!desc.trim() && !photo) return Alert.alert('Add a photo or say what you had');
+    if (!canSave) return Alert.alert('Pick from your plan, type what you had or add a photo');
     setBusy('Saving…');
-    const followed = cheat ? null : ai?.plan_check ? ai.plan_check === 'on_plan' : null;
+    const followed = cheat ? null : ai?.plan_check ? ai.plan_check === 'on_plan' : picked.length && !desc.trim() ? true : null;
+    const what = [picked.join(', '), desc.trim()].filter(Boolean).join(', ');
+    const description = [what, note.trim() && `Note: ${note.trim()}`].filter(Boolean).join(' · ') || null;
     const edited = ai && ['kcal', 'protein_g', 'carbs_g', 'fat_g'].some((k) => num(nutr[k]) !== (ai[k] == null ? null : Math.round(Number(ai[k]) * 10) / 10));
     const { error } = await supabase.from('meal_logs').insert({
-      user_id: userId, log_date: date, slot: slot.key, photo_path: photo, followed, cheat, description: desc.trim() || null,
+      user_id: userId, log_date: date, slot: slot.key, photo_path: photo, followed, cheat, description,
       ai: ai ? { ...ai, edited_by_user: edited || undefined } : null,
       kcal: num(nutr.kcal), protein_g: num(nutr.protein_g), carbs_g: num(nutr.carbs_g), fat_g: num(nutr.fat_g),
     });
@@ -238,14 +244,6 @@ function MealSlot({ slot, planSlot, meals, userId, date, isCoach, cheatDay = fal
     const { error } = await supabase.from('meal_logs').update({ cheat: v, ...(v ? { followed: null } : {}) }).eq('id', m.id);
     if (error) return cheer('error', error.message);
     onChange(); cheer(v ? 'cheat' : 'saved');
-  };
-  // One tap on an option from the diet plan logs it straight away as an on-plan meal.
-  const quickLog = async (item) => {
-    setBusy('Saving…');
-    const { error } = await supabase.from('meal_logs').insert({ user_id: userId, log_date: date, slot: slot.key, description: item, followed: cheat ? null : true, cheat });
-    setBusy('');
-    if (error) return cheer('error', error.message);
-    await close(); onChange(); cheer(isCoach ? 'update' : cheat ? 'cheat' : 'on_plan');
   };
   const del = (m) => Alert.alert('Delete this meal?', m.description || '', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: async () => {
     const { error } = await supabase.from('meal_logs').delete().eq('id', m.id);
@@ -300,9 +298,8 @@ function MealSlot({ slot, planSlot, meals, userId, date, isCoach, cheatDay = fal
         <View style={{ gap: 10, paddingTop: 6 }}>
           {planSlot?.items?.length > 0 && (
             <View style={{ gap: 6 }}>
-              <T small muted>From your plan, tap to log it:</T>
-              <Chips>{planSlot.items.slice(0, 8).map((it) => <Chip key={it} label={`+ ${it}`} onPress={() => quickLog(it)} style={{ borderColor: C.ink, borderWidth: 2 }} />)}</Chips>
-              <T small muted>Had something else? Type it or add a photo below.</T>
+              <T small muted>From your plan, tap everything you had:</T>
+              <Chips>{planSlot.items.slice(0, 10).map((it) => <Chip key={it} label={`${picked.includes(it) ? '✓' : '+'} ${it}`} on={picked.includes(it)} tone={C.lime} onPress={() => togglePick(it)} style={{ borderColor: C.ink, borderWidth: 2 }} />)}</Chips>
             </View>
           )}
           {planSlot?.avoid?.length > 0 && <T small style={{ color: C.red }}>Avoid: {planSlot.avoid.join(', ')}</T>}
@@ -315,14 +312,15 @@ function MealSlot({ slot, planSlot, meals, userId, date, isCoach, cheatDay = fal
               </View>
             </Row>
           )}
-          <Field value={desc} onChangeText={setDesc} placeholder="What did you have? e.g. 2 roti, dal, salad" multiline />
+          <Field label={planSlot?.items?.length ? 'Anything else you had?' : 'What did you have?'} value={desc} onChangeText={setDesc} placeholder="e.g. 2 roti, dal, salad" multiline />
+          <Field label="Note (optional)" value={note} onChangeText={setNote} placeholder="e.g. less oil, half portion" maxLength={200} />
           <MacroFields value={nutr} onChange={setNutr} />
           <T small muted>{has('ai') && has('meal_photos') ? 'Add a photo and AI fills these in. You can change any number before adding.' : 'Optional. Fill in what you know.'}</T>
           <Toggle label="🍕 Cheat meal" hint="Planned treat, no guilt" value={cheat} onChange={setCheat} />
           <Row wrap>
             {has('meal_photos') && <Btn small variant="soft" title="📷 Camera" onPress={() => attach('camera')} disabled={!!busy} />}
             {has('meal_photos') && <Btn small variant="ghost" title="🖼 Gallery" onPress={() => attach('library')} disabled={!!busy} />}
-            <Btn small title="Add meal" onPress={add} disabled={!!busy || (!desc.trim() && !photo)} />
+            <Btn small title={`✓ Save meal${picked.length > 1 ? ` (${picked.length})` : ''}`} onPress={add} disabled={!!busy || !canSave} />
           </Row>
           {busy ? <T small muted>⏳ {busy}</T> : null}
         </View>

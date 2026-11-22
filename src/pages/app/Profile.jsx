@@ -11,6 +11,7 @@ import { useAuth } from '../../lib/auth';
 import { FEATURES } from '../../lib/constants';
 import { Card, Spinner, useToast } from '../../components/ui';
 import Avatar, { AvatarEditor } from '../../components/Avatar';
+import PlanCard from '../../components/PlanCard';
 
 /** Shows the client's current coach (RLS lets a client read only their own coach's profile). */
 function MyCoach({ coachId }) {
@@ -100,7 +101,8 @@ export default function Profile() {
           {profile.track_cycle && <PeriodTracker userId={profile.id} />}
         </div>
       )}
-      <Card title="My plan">
+      <PlanCard />
+      <Card title="My features">
         <p><b>{profile.plans?.name || 'No plan yet'}</b>{isAdmin && ' · Staff'}</p>
         <div className="chips-row">
           {FEATURES.map((x) => <span key={x.key} className={`chip ${features.includes(x.key) ? 'on ok' : 'off'}`}>{x.label}</span>)}

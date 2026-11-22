@@ -8,6 +8,7 @@ import { uploadMedia, toBase64 } from '../lib/media';
 import { askChat, saveAction, notifyDataChanged, actionAllowed } from '../lib/chatLog';
 import { SLOTS, HABITS, SUPPLEMENTS, DAY_LABELS, slotLabel } from '../lib/constants';
 import { today, addDays, fmt } from '../lib/dates';
+import { useAiQuota, aiUsed } from '../lib/aiQuota';
 import { SignedImg, Spinner } from './ui';
 
 const EXAMPLES = [
@@ -30,6 +31,8 @@ export default function ChatLog() {
   const [img, setImg] = useState(null); // { file, url }
   const [busy, setBusy] = useState(false);
   const listRef = useRef(null);
+  const [quota] = useAiQuota();
+  const out = quota && !quota.unlimited && quota.remaining <= 0;
   const cam = useRef(null);
   const gal = useRef(null);
 
@@ -44,14 +47,15 @@ export default function ChatLog() {
     if (f) setImg({ file: f, url: URL.createObjectURL(f) });
   };
 
-  const send = async (override) => {
+  const send = async (override, photoOverride) => {
     const body = (override ?? text).trim();
-    if ((!body && !img) || busy) return;
+    const img0 = photoOverride !== undefined ? photoOverride : img;
+    if ((!body && !img0) || busy || out) return;
     const mine = { id: uid(), role: 'user', text: body, at: Date.now() };
     const history = msgs.filter((m) => m.text).slice(-8);
-    setMsgs((m) => [...m, { ...mine, localImg: img?.url }]);
+    setMsgs((m) => [...m, { ...mine, localImg: img0?.url }]);
     setText(''); setBusy(true);
-    const photo = img; setImg(null);
+    const photo = img0; setImg(null);
     try {
       let image, mime, photoPath;
       if (photo) {
@@ -68,9 +72,18 @@ export default function ChatLog() {
         actions: allowed.map((a) => ({ ...a, _id: uid(), _status: 'pending' })),
       }]);
     } catch (e) {
-      setMsgs((m) => [...m, { id: uid(), role: 'ai', at: Date.now(), error: true, text: `Couldn’t read that: ${e.message}` }]);
+      const id = uid();
+      retries.current[id] = { body, photo, userMsg: mine.id };
+      setMsgs((m) => [...m, { id, role: 'ai', at: Date.now(), error: true, retry: true, text: `Couldn’t read that: ${e.message}` }]);
     }
-    setBusy(false);
+    setBusy(false); aiUsed();
+  };
+  // Resend a failed message (same text and photo). Kept in memory only, so it works until the page is reloaded.
+  const retries = useRef({});
+  const retry = (m) => {
+    const r = retries.current[m.id];
+    setMsgs((all) => all.filter((x) => x.id !== m.id && x.id !== r?.userMsg));
+    if (r) send(r.body, r.photo || null);
   };
 
   const patch = (msgId, actId, changes) =>
@@ -116,6 +129,7 @@ export default function ChatLog() {
               <div key={m.id} className={`chat-msg ${m.role} ${m.error ? 'err' : ''}`}>
                 {(m.photo || m.localImg) && (m.localImg ? <img className="chat-photo" src={m.localImg} alt="" /> : <SignedImg path={m.photo} className="chat-photo" />)}
                 {m.text && <p>{m.text}</p>}
+                {m.error && m.retry && retries.current[m.id] && <button type="button" className="btn btn-pop btn-sm" disabled={busy} onClick={() => retry(m)}>↻ Try again</button>}
                 {m.actions?.length > 0 && (
                   <div className="chat-actions">
                     {m.actions.map((a) => <ActionCard key={a._id} a={a} onChange={(c) => patch(m.id, a._id, c)} onSave={() => save(m, a)} onSkip={() => patch(m.id, a._id, { _status: 'skipped' })} />)}
@@ -129,6 +143,11 @@ export default function ChatLog() {
             {busy && <div className="chat-msg ai"><p><Spinner size={14} /> Reading that…</p></div>}
           </div>
 
+          {quota && !quota.unlimited && (
+            <div className={`chat-quota ${out ? 'out' : ''}`}>
+              {out ? <>You’ve used all {quota.limit} AI chats for today on {quota.tier_name}. They reset at midnight. <Link to="/app/profile">Get more</Link></> : `${quota.remaining} of ${quota.limit} AI chats left today`}
+            </div>
+          )}
           <form className="chat-input" onSubmit={(e) => { e.preventDefault(); send(); }}>
             {img && (
               <div className="chat-attach"><img src={img.url} alt="" /><button type="button" className="icon-btn sm" onClick={() => setImg(null)} aria-label="Remove photo"><X size={14} /></button></div>

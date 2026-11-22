@@ -5,6 +5,7 @@ import { useAuth } from '../../lib/auth';
 import { pickImage, uploadMedia } from '../../lib/media';
 import { askChat, saveAction, actionAllowed, notifyDataChanged } from '../../shared/chatLog';
 import { cheer } from '../../shared/cheer';
+import { useAiQuota, aiUsed } from '../../lib/aiQuota';
 import { SLOTS, HABITS, SUPPLEMENTS, slotLabel } from '../../shared/constants';
 import { SITES } from '../../shared/measure';
 import { fmt } from '../../shared/dates';
@@ -22,17 +23,21 @@ export default function Chat() {
   const [text, setText] = useState('');
   const [img, setImg] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [quota] = useAiQuota();
+  const out = quota && !quota.unlimited && quota.remaining <= 0;
   const scroll = useRef(null);
   useEffect(() => { AsyncStorage.getItem(key).then((v) => { try { setMsgs(JSON.parse(v) || []); } catch { /* ignore */ } }); }, [key]);
   useEffect(() => { AsyncStorage.setItem(key, JSON.stringify(msgs.slice(-40))).catch(() => {}); setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 50); }, [msgs, key]);
 
-  const send = async (override) => {
+  const retries = useRef({});
+  const send = async (override, photoOverride) => {
     const body = (override ?? text).trim();
-    if ((!body && !img) || busy) return;
-    const mine = { id: uid(), role: 'user', text: body, localImg: img?.uri, at: Date.now() };
+    const img0 = photoOverride !== undefined ? photoOverride : img;
+    if ((!body && !img0) || busy || out) return;
+    const mine = { id: uid(), role: 'user', text: body, localImg: img0?.uri, at: Date.now() };
     const history = msgs.filter((m) => m.text && !m.error).slice(-8);
     setMsgs((m) => [...m, mine]); setText(''); setBusy(true);
-    const photo = img; setImg(null);
+    const photo = img0; setImg(null);
     try {
       let photoPath;
       if (photo) photoPath = await uploadMedia(user.id, 'meals', photo);
@@ -42,9 +47,11 @@ export default function Chat() {
       setMsgs((m) => [...m, { id: uid(), role: 'ai', at: Date.now(), photoPath, text: r.reply + (dropped ? ' (Some of this isn’t switched on for your plan, so I left it out.)' : ''),
         actions: allowed.map((a) => ({ ...a, _id: uid(), _status: 'pending' })) }]);
     } catch (e) {
-      setMsgs((m) => [...m, { id: uid(), role: 'ai', at: Date.now(), error: true, text: `Couldn’t read that: ${e.message}` }]);
+      const id = uid();
+      retries.current[id] = { body, photo, userMsg: mine.id };
+      setMsgs((m) => [...m, { id, role: 'ai', at: Date.now(), error: true, retry: true, text: `Couldn’t read that: ${e.message}` }]);
     }
-    setBusy(false);
+    setBusy(false); aiUsed();
   };
   const patch = (mid, aid, ch) => setMsgs((m) => m.map((x) => x.id !== mid ? x : { ...x, actions: x.actions.map((a) => a._id === aid ? { ...a, ...ch } : a) }));
   const save = async (msg, a) => {
@@ -71,6 +78,7 @@ export default function Chat() {
           <View key={m.id} style={[st.bubble, m.role === 'user' ? st.me : st.ai, m.error && { backgroundColor: C.pink }]}>
             {m.localImg ? <Image source={{ uri: m.localImg }} style={{ width: 140, height: 140, borderRadius: 10 }} /> : null}
             {m.text ? <T>{m.text}</T> : null}
+            {m.error && m.retry && retries.current[m.id] ? <Btn small variant="pop" title="↻ Try again" disabled={busy} onPress={() => { const r = retries.current[m.id]; setMsgs((all) => all.filter((x) => x.id !== m.id && x.id !== r.userMsg)); send(r.body, r.photo || null); }} /> : null}
             {(m.actions || []).map((a) => <ActionCard key={a._id} a={a} onChange={(ch) => patch(m.id, a._id, ch)} onSave={() => save(m, a)} onSkip={() => patch(m.id, a._id, { _status: 'skipped' })} />)}
             {(m.actions || []).filter((a) => a._status === 'pending').length > 1 && <Btn small title="Save all" onPress={() => saveAll(m)} />}
           </View>
@@ -79,12 +87,17 @@ export default function Chat() {
         <T small muted>AI can make mistakes. Check each card before saving. Not medical advice.</T>
       </ScrollView>
       <View style={st.bar}>
+        {quota && !quota.unlimited ? (
+          <T small style={out ? { color: '#B4233C', fontWeight: '700' } : { color: C.muted }}>
+            {out ? `You’ve used all ${quota.limit} AI chats for today on ${quota.tier_name}. They reset at midnight. Upgrade from Me.` : `${quota.remaining} of ${quota.limit} AI chats left today`}
+          </T>
+        ) : null}
         {img ? <Row><Image source={{ uri: img.uri }} style={{ width: 48, height: 48, borderRadius: 8 }} /><Btn small variant="ghost" title="Remove photo" onPress={() => setImg(null)} /></Row> : null}
         <Row style={{ alignItems: 'flex-end' }}>
           <Btn small variant="soft" title="📷" accessibilityLabel="Add photo" onPress={async () => { const p = await pickImage('camera'); if (p) setImg(p); }} />
           <Btn small variant="ghost" title="🖼" accessibilityLabel="Pick from gallery" onPress={async () => { const p = await pickImage('library'); if (p) setImg(p); }} />
           <Field value={text} onChangeText={setText} placeholder="lunch 2 roti dal, 30 min walk…" multiline style={{ flex: 1 }} />
-          <Btn small title="Send" onPress={() => send()} disabled={busy || (!text.trim() && !img)} />
+          <Btn small title="Send" onPress={() => send()} disabled={busy || out || (!text.trim() && !img)} />
         </Row>
       </View>
     </KeyboardAvoidingView>

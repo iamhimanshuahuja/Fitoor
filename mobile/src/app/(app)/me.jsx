@@ -11,6 +11,7 @@ import { FEATURES } from '../../shared/constants';
 import { Btn, Card, Chip, Chips, Field, NumField, Row, Screen, T } from '../../components/ui';
 import WomensHealth from '../../components/WomensHealth';
 import Avatar, { AvatarEditor } from '../../components/Avatar';
+import PlanCard from '../../components/PlanCard';
 import { C } from '../../theme';
 
 const DIETS = [['veg', 'Veg'], ['egg', 'Eggetarian'], ['nonveg', 'Non-veg']];
@@ -88,7 +89,8 @@ export default function Me() {
         {coach ? <Row gap={12}><Avatar path={coach.avatar_path} name={coach.full_name} size={52} /><T style={{ flex: 1 }}><T bold>{coach.full_name}</T> sees your logs, plan and reports, and replies in notes.</T></Row> : <T muted>You don’t have a coach yet. We’ll match you soon.</T>}
       </Card>
 
-      <Card title="My plan">
+      <PlanCard />
+      <Card title="My features">
         <Chips>{FEATURES.filter((x) => features?.includes?.(x.key) ?? has(x.key)).map((x) => <Chip key={x.key} small label={x.label} on tone={C.lime} />)}</Chips>
       </Card>
 

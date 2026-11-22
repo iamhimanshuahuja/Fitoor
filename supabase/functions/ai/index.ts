@@ -99,6 +99,17 @@ Return JSON only:
 {"headline": string (max 12 words), "wins": [string] (2-4), "watch": [string] (1-3), "suggestions": [string] (2-4),
  "message_to_client": string (60-110 words, friendly, second person)}`,
 
+  ask: (b) => `You are Fitoor's assistant in an Indian diet & fitness coaching app. ${b.about === 'client'
+    ? 'A coach is asking about one of their clients. Answer the coach directly and practically.'
+    : 'The user is asking about their own logs. Answer them directly, warmly, in second person.'}
+Data (JSON, most recent first, may be partial): ${JSON.stringify(b.data || {}).slice(0, 40000)}
+Question: ${String(b.question || '').slice(0, 600)}
+Rules: base the answer on the data; say plainly when the data doesn't show something. Use numbers from the data where useful.
+Keep it short (max ~150 words), plain sentences or a few bullet lines. Indian, vegetarian-friendly food ideas only if asked for food.
+Never diagnose or give medical advice; for symptoms, medicines or lab values say to discuss with their doctor. Never comment on body size.
+Cheat meals are planned treats agreed with the coach; don't criticise them.
+Return JSON only: {"answer": string, "follow_ups": [string] (0-3 short follow-up questions they might ask next)}`,
+
   // Lab reports are long: a line-per-test format is far more robust than one big JSON blob.
   lab: (b) => `This is a medical laboratory report (blood test etc.). Extract EVERY test result.
 Skip interpretation text, method names, comments and doctor notes.
@@ -197,9 +208,10 @@ Deno.serve(async (req) => {
   const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: auth } } });
   const { data: u } = await sb.auth.getUser();
   if (!u?.user) return json({ error: 'Not signed in' }, 401);
-  const [{ data: prof }, { data: feats }] = await Promise.all([
+  const [{ data: prof }, { data: feats }, { data: quota }] = await Promise.all([
     sb.from('profiles').select('role').eq('id', u.user.id).single(),
     sb.rpc('my_features'),
+    sb.rpc('ai_quota'),
   ]);
   const staff = ['coach', 'super_admin'].includes(prof?.role);
   if (!staff && !(feats || []).includes('ai')) return json({ error: 'AI features are not enabled on your plan' }, 403);
@@ -208,7 +220,15 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
   const task = body.task as string;
   if (!PROMPTS[task]) return json({ error: `Unknown task "${task}"` }, 400);
-  const TEXT_ONLY = ['summary', 'chat'];
+  const TEXT_ONLY = ['summary', 'chat', 'ask'];
+  // Daily AI allowance by pricing tier (chat logs + Ask AI). Super admin is unlimited; coaches have the same tiers as clients.
+  if (task === 'chat' || task === 'ask') {
+    if (task === 'ask' && quota && !quota.can_ask) return json({ error: 'Ask AI is part of the Pro plan. Ask us to upgrade from Me → Plan.', code: 'upgrade' }, 403);
+    if (task === 'ask' && !String(body.question || '').trim()) return json({ error: 'Type a question' }, 400);
+    if (quota && !quota.unlimited && quota.remaining <= 0) {
+      return json({ error: `You’ve used all ${quota.limit} AI chats for today on ${quota.tier_name}. It resets at midnight, or upgrade for more from Me → Plan.`, code: 'limit', quota }, 429);
+    }
+  }
   const data = body.image || body.file;
   if (!data && !TEXT_ONLY.includes(task)) return json({ error: 'No image/file provided' }, 400);
   if (data && data.length > 6_000_000) return json({ error: 'File too large (max ~4 MB)' }, 413);
@@ -241,6 +261,10 @@ Deno.serve(async (req) => {
       const actions = Array.isArray(result?.actions) ? result.actions.slice(0, 12) : [];
       await logUse(true, { actions: actions.map((a: any) => a?.type).filter(Boolean) });
       return json({ result: { reply: String(result?.reply || ''), actions } });
+    }
+    if (task === 'ask') {
+      await logUse(true, { about: body.about === 'client' ? 'client' : 'self' });
+      return json({ result: { answer: String(result?.answer || ''), follow_ups: Array.isArray(result?.follow_ups) ? result.follow_ups.slice(0, 3).map(String) : [] } });
     }
     await logUse(true);
     return json({ result });

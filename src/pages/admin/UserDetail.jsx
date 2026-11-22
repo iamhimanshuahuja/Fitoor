@@ -11,6 +11,8 @@ import Comments from '../../components/Comments';
 import DietPlanEditor from '../../components/DietPlanEditor';
 import { DailyBars, COLORS } from '../../components/Charts';
 import AiWeeklySummary from '../../components/AiWeeklySummary';
+import AskAI from '../../components/AskAI';
+import TierEditor from '../../components/TierEditor';
 import ProgressDashboard from '../../components/ProgressDashboard';
 import { CoachJuiceDays } from '../../components/JuiceDays';
 import { LoginHistory, FeatureActivity } from '../../components/ActivityLog';
@@ -125,6 +127,7 @@ export default function UserDetail() {
       {tab === 'access' && (
         <div className="grid-2">
           {isSuper && <CoachAssign userId={id} profile={profile} updateProfile={updateProfile} />}
+          {isSuper && <TierEditor profile={profile} onSaved={load} />}
           <Card title="Plan">
             {isSuper ? (<>
               <label>Assigned plan
@@ -225,6 +228,7 @@ function Overview({ userId, profile, onOpenDay, onProfileSaved }) {
     <>
       <ProgressDashboard userId={userId} profile={profile} />
       {isFemale(profile) && <CoachWomensHealth profile={profile} onSaved={onProfileSaved} />}
+      <AskAI userId={userId} about="client" name={profile.full_name} />
       <AiWeeklySummary userId={userId} profile={profile} />
       <div className="stats">
         <Stat label="Days logged (30d)" value={`${loggedDays}/30`} tone={loggedDays >= 20 ? 'good' : 'warn'} />

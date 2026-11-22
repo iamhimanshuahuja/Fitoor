@@ -22,6 +22,7 @@ const Plans = lazy(() => import('./pages/admin/Plans'));
 const Coaches = lazy(() => import('./pages/admin/Coaches'));
 const AdminRecipes = lazy(() => import('./pages/admin/Recipes'));
 const AdminMe = lazy(() => import('./pages/admin/Me'));
+const AdminPricing = lazy(() => import('./pages/admin/Pricing'));
 const RecipeList = lazy(() => import('./pages/recipes/RecipeList'));
 const Terms = lazy(() => import('./pages/legal/Terms'));
 const Privacy = lazy(() => import('./pages/legal/Privacy'));
@@ -94,6 +95,7 @@ export default function App() {
         <Route path="coaches" element={<RequireAuth superOnly><Coaches /></RequireAuth>} />
         <Route path="recipes" element={<AdminRecipes />} />
         <Route path="me" element={<AdminMe />} />
+        <Route path="pricing" element={<AdminPricing />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

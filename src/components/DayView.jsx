@@ -1,5 +1,6 @@
 import { cheer } from '../lib/cheer';
-import { useCallback, useEffect, useState } from 'react';
+import { isPR, loadBests, fmtSet } from '../lib/workouts';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Trash2, Sparkles, Check, X, Scale, Dumbbell, Flame, Pencil, Timer, Bean } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -32,9 +33,13 @@ export default function DayView({ userId, date, mode = 'user', features }) {
   const [juiceDay, setJuiceDay] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState(null);
+  const [prevBests, setPrevBests] = useState(null); // best sets before this day, to spot PRs
 
+  // Spinner only when the person/day changes. Reloads after a save happen in place, so the page doesn't jump to the top.
+  const shownKey = useRef('');
   const load = useCallback(async () => {
-    setLoading(true);
+    const key = `${userId}|${date}`;
+    if (shownKey.current !== key) setLoading(true);
     const [m, w, h, wo, p, y, prof, jd] = await Promise.all([
       supabase.from('meal_logs').select('*').eq('user_id', userId).eq('log_date', date).order('eaten_at'),
       supabase.from('weight_logs').select('*').eq('user_id', userId).eq('log_date', date).maybeSingle(),
@@ -55,7 +60,9 @@ export default function DayView({ userId, date, mode = 'user', features }) {
     setWeight(w.data);
     setHabits(h.data || { habits: {}, supplements: {} });
     setWorkouts(wo.data || []);
+    if ((wo.data || []).length) loadBests(userId, date).then(setPrevBests); else setPrevBests(null);
     setPlan(p.data);
+    shownKey.current = key;
     setLoading(false);
   }, [userId, date]);
 
@@ -142,7 +149,7 @@ export default function DayView({ userId, date, mode = 'user', features }) {
 
       {has('gym') && (
         <Card title="Workout" action={!isCoach && <Link to="/app/gym" className="btn btn-soft btn-sm"><Plus size={16} /> Log workout</Link>}>
-          {workouts.length ? workouts.map((w) => <WorkoutSummary key={w.id} w={w} editable onChange={changed} />) : <Empty>No workout logged.</Empty>}
+          {workouts.length ? workouts.map((w) => <WorkoutSummary key={w.id} w={w} editable onChange={changed} prevBests={prevBests} />) : <Empty>No workout logged.</Empty>}
         </Card>
       )}
 
@@ -155,14 +162,15 @@ export default function DayView({ userId, date, mode = 'user', features }) {
   );
 }
 
-export function WorkoutSummary({ w, editable = false, onChange }) {
+export function WorkoutSummary({ w, editable = false, onChange, prevBests }) {
   const [edit, setEdit] = useState(false);
   const [sets, setSets] = useState(w.workout_sets || []);
   const [meta, setMeta] = useState({ day_label: w.day_label || '', duration_min: w.duration_min || '', notes: w.notes || '' });
   const [busy, setBusy] = useState(false);
   useEffect(() => { setSets(w.workout_sets || []); }, [w]);
   const byEx = {};
-  sets.forEach((s) => { (byEx[s.exercise_id] ||= { name: s.exercises?.name, kind: s.exercises?.kind, sets: [] }).sets.push(s); });
+  sets.forEach((s) => { (byEx[s.exercise_id] ||= { id: s.exercise_id, name: s.exercises?.name, kind: s.exercises?.kind, sets: [] }).sets.push(s); });
+  Object.values(byEx).forEach((e) => e.sets.sort((a, b) => (a.set_no || 0) - (b.set_no || 0)));
   const upd = (id, k, v) => setSets(sets.map((s) => (s.id === id ? { ...s, [k]: v } : s)));
   const num = (v) => (v === '' || v == null ? null : Number(v));
   const save = async () => {
@@ -223,7 +231,7 @@ export function WorkoutSummary({ w, editable = false, onChange }) {
       ) : (
         <ul>
           {Object.values(byEx).map((e, i) => (
-            <li key={i}><span>{e.name}</span>
+            <li key={i}><span>{e.name}{prevBests?.[e.id] && isPR(e.sets, prevBests[e.id]) && <span className="tag pr-tag" title={`Beat ${fmtSet({ reps: prevBests[e.id].reps, weight_kg: prevBests[e.id].kg })}`}>🏆 PR</span>}</span>
               <small>{e.kind === 'cardio'
                 ? e.sets.map((s) => `${s.duration_min || '?'} min${s.incline ? ` @${s.incline}%` : ''}${s.distance_km ? ` ${s.distance_km} km` : ''}`).join(', ')
                 : e.sets.map((s) => `${s.reps ?? '?'}×${s.weight_kg ? s.weight_kg + 'kg' : 'bw'}`).join(' · ')}</small>
@@ -231,7 +239,7 @@ export function WorkoutSummary({ w, editable = false, onChange }) {
           ))}
         </ul>
       )}
-      {!edit && w.notes && <p className="muted small">{w.notes}</p>}
+      {!edit && w.notes && w.notes !== 'Logged by chat' && <p className="muted small">{w.notes.replace(/(^|\s·\s)Logged by chat/g, '').trim()}</p>}
     </div>
   );
 }
@@ -307,6 +315,8 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
   const [cheat, setCheat] = useState(cheatDay);
   useEffect(() => { setCheat(cheatDay); }, [cheatDay]);
   const [desc, setDesc] = useState('');
+  const [picked, setPicked] = useState([]); // items ticked from the diet plan
+  const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -343,23 +353,28 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
   useEffect(() => { if (!open && photo?.path) { supabase.storage.from('media').remove([photo.path]); setPhoto(null); setAi(null); setNutr(EMPTY_N); } }, [open]);
   const resetDraft = async (removePhoto) => {
     if (removePhoto && photo?.path) await supabase.storage.from('media').remove([photo.path]);
-    setPhoto(null); setAi(null); setNutr(EMPTY_N); setDesc(''); setErr('');
+    setPhoto(null); setAi(null); setNutr(EMPTY_N); setDesc(''); setPicked([]); setNote(''); setErr('');
   };
+  const togglePick = (it) => setPicked((p) => (p.includes(it) ? p.filter((x) => x !== it) : [...p, it]));
+  const canSave = picked.length > 0 || desc.trim() || photo;
   const add = async () => {
-    if (!desc.trim() && !photo) return setErr('Add a photo or say what you had');
+    if (!canSave) return setErr('Pick from your plan, type what you had or add a photo');
     setBusy(true); setErr(''); setBusyMsg('Saving…');
     const num = (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Math.max(0, Number(v)));
-    const followed = cheat ? null : ai?.plan_check ? ai.plan_check === 'on_plan' : null;
+    // Only plan items (nothing extra typed) → on plan. Otherwise the AI's plan check if there was a photo, else unmarked.
+    const followed = cheat ? null : ai?.plan_check ? ai.plan_check === 'on_plan' : picked.length && !desc.trim() ? true : null;
+    const what = [picked.join(', '), desc.trim()].filter(Boolean).join(', ');
+    const description = [what, note.trim() && `Note: ${note.trim()}`].filter(Boolean).join(' · ') || null;
     const edited = ai && ['kcal', 'protein_g', 'carbs_g', 'fat_g'].some((k) => num(nutr[k]) !== (ai[k] == null ? null : Math.round(Number(ai[k]) * 10) / 10));
     const { error } = await supabase.from('meal_logs').insert({
       user_id: userId, log_date: date, slot: slot.key, photo_path: photo?.path || null, followed, cheat,
       ai: ai ? { ...ai, edited_by_user: edited || undefined } : null,
-      description: desc.trim() || null,
+      description,
       kcal: num(nutr.kcal), protein_g: num(nutr.protein_g), carbs_g: num(nutr.carbs_g), fat_g: num(nutr.fat_g),
     });
     setBusy(false);
     if (error) { setErr(error.message); return cheer('error', error.message); }
-    setPhoto(null); setAi(null); setNutr(EMPTY_N); setDesc(''); setOpen(false); onChange();
+    setPhoto(null); setAi(null); setNutr(EMPTY_N); setDesc(''); setPicked([]); setNote(''); setOpen(false); onChange();
     if (!admin) cheer(cheat ? 'cheat' : followed === true ? 'on_plan' : 'meal');
     else cheer('update');
   };
@@ -388,14 +403,6 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
     if (error) return cheer('error', error.message);
     if (m.photo_path) await supabase.storage.from('media').remove([m.photo_path]);
     onChange(); cheer('removed');
-  };
-  // One tap on an option from the diet plan logs it straight away as an on-plan meal (numbers can be added later with ✏️).
-  const quickLog = async (item) => {
-    setBusy(true); setErr('');
-    const { error } = await supabase.from('meal_logs').insert({ user_id: userId, log_date: date, slot: slot.key, description: item, followed: cheat ? null : true, cheat });
-    setBusy(false);
-    if (error) { setErr(error.message); return cheer('error', error.message); }
-    setOpen(false); onChange(); cheer(admin ? 'update' : cheat ? 'cheat' : 'on_plan');
   };
 
   return (
@@ -449,11 +456,13 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
         <div className="slot-add">
           {planSlot?.items?.length > 0 && (
             <div className="plan-quick">
-              <small className="muted">From your plan, tap to log it:</small>
-              <div className="plan-hints">
-                {planSlot.items.slice(0, 8).map((it) => <button key={it} type="button" className="chip chip-log" disabled={busy} onClick={() => quickLog(it)}><Plus size={13} /> {it}</button>)}
+              <small className="muted">From your plan, tap everything you had:</small>
+              <div className="plan-hints" role="group" aria-label="Items from your plan">
+                {planSlot.items.slice(0, 10).map((it) => {
+                  const on = picked.includes(it);
+                  return <button key={it} type="button" className={`chip chip-log ${on ? 'on' : ''}`} aria-pressed={on} disabled={busy} onClick={() => togglePick(it)}>{on ? <Check size={13} /> : <Plus size={13} />} {it}</button>;
+                })}
               </div>
-              <small className="muted">Had something else? Type it or add a photo below.</small>
             </div>
           )}
           {planSlot?.avoid?.length > 0 && <p className="avoid">Avoid: {planSlot.avoid.join(', ')}</p>}
@@ -467,7 +476,12 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
               </div>
             </div>
           )}
-          <textarea rows={2} placeholder="What did you have? e.g. 2 roti, dal, salad" value={desc} onChange={(e) => setDesc(e.target.value)} />
+          <label className="slot-field">{planSlot?.items?.length ? 'Anything else you had?' : 'What did you have?'}
+            <textarea rows={2} placeholder="e.g. 2 roti, dal, salad" value={desc} onChange={(e) => setDesc(e.target.value)} />
+          </label>
+          <label className="slot-field">Note <span className="muted">(optional)</span>
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. less oil, half portion, ate late" maxLength={200} />
+          </label>
           <div className="nutr-row" role="group" aria-label="Nutrition for this meal">
             <label>kcal<input type="number" inputMode="decimal" min="0" value={nutr.kcal} onChange={setN('kcal')} placeholder="–" /></label>
             <label>Protein g<input type="number" inputMode="decimal" min="0" step="0.1" value={nutr.protein_g} onChange={setN('protein_g')} placeholder="–" /></label>
@@ -478,8 +492,8 @@ function MealSlot({ slot, planSlot, meals, userId, date, editable, admin, has, o
           <label className="check cheat-check"><input type="checkbox" checked={cheat} onChange={(e) => setCheat(e.target.checked)} /> 🍕 Cheat meal <span className="muted small">(planned treat, no guilt)</span></label>
           <div className="row gap wrap">
             {has('meal_photos') && <PhotoInput onFile={attach} busy={busy} label={photo ? 'Change photo' : has('ai') ? 'Photo (AI guesses)' : 'Add photo'} />}
-            <button className="btn btn-primary" disabled={busy || (!desc.trim() && !photo)} onClick={add}>Add meal</button>
-            {(photo || desc || nutr.kcal) && <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => resetDraft(true)}>Clear</button>}
+            <button className="btn btn-primary" disabled={busy || !canSave} onClick={add}><Check size={16} /> Save meal{picked.length > 1 ? ` (${picked.length} items)` : ''}</button>
+            {(photo || desc || note || picked.length > 0 || nutr.kcal) && <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => resetDraft(true)}>Clear</button>}
           </div>
           {busy && <p className="muted small"><Spinner size={14} /> {busyMsg}</p>}
         </div>

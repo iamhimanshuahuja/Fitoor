@@ -4,6 +4,7 @@ import { useAuth } from '../../lib/auth';
 import { cheer } from '../../lib/cheer';
 import { Card, useToast } from '../../components/ui';
 import { AvatarEditor } from '../../components/Avatar';
+import PlanCard from '../../components/PlanCard';
 
 /** Coach / super admin: own name, phone and profile photo (clients see these next to coach notes and on "My coach"). */
 export default function AdminMe() {
@@ -25,6 +26,7 @@ export default function AdminMe() {
     <div className="page">
       <div className="page-head"><h1>My profile</h1></div>
       <Card><AvatarEditor onMessage={show} /></Card>
+      <PlanCard />
       <Card title="Details">
         <form onSubmit={save} className="form">
           <label>Full name<input value={f.full_name} onChange={(e) => setF({ ...f, full_name: e.target.value })} required /></label>

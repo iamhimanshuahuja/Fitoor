@@ -7,7 +7,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const WEB = join(here, '..', '..', 'src', 'lib');
 const OUT = join(here, '..', 'src', 'shared');
 mkdirSync(OUT, { recursive: true });
-const FILES = ['dates', 'constants', 'cycle', 'labNames', 'juices', 'legal', 'measure', 'cheer', 'chatLog', 'juiceDays'];
+const FILES = ['dates', 'constants', 'cycle', 'labNames', 'juices', 'legal', 'measure', 'cheer', 'chatLog', 'juiceDays', 'workouts', 'askData'];
 const banner = (f) => `// AUTO-COPIED from src/lib/${f}.js by mobile/scripts/sync-shared.mjs — edit the web file, then run "npm run sync-shared".\n`;
 for (const f of FILES) {
   let s = readFileSync(join(WEB, `${f}.js`), 'utf8');
