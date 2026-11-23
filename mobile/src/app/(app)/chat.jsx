@@ -48,8 +48,9 @@ export default function Chat() {
         actions: allowed.map((a) => ({ ...a, _id: uid(), _status: 'pending' })) }]);
     } catch (e) {
       const id = uid();
-      retries.current[id] = { body, photo, userMsg: mine.id };
-      setMsgs((m) => [...m, { id, role: 'ai', at: Date.now(), error: true, retry: true, text: `Couldn’t read that: ${e.message}` }]);
+      const final = !!e.code; // off topic / daily limit / not on plan: say why, no retry
+      if (!final) retries.current[id] = { body, photo, userMsg: mine.id };
+      setMsgs((m) => [...m, { id, role: 'ai', at: Date.now(), error: true, retry: !final, text: final ? e.message : `Couldn’t read that: ${e.message}` }]);
     }
     setBusy(false); aiUsed();
   };
@@ -84,7 +85,7 @@ export default function Chat() {
           </View>
         ))}
         {busy ? <T muted small>✨ Thinking…</T> : null}
-        <T small muted>AI can make mistakes. Check each card before saving. Not medical advice.</T>
+        <T small muted>AI can make mistakes. Check each card before saving. Not medical advice. Only questions about your Fitoor tracking get an answer; chat text is kept 30 days for quality checks (photos aren’t kept).</T>
       </ScrollView>
       <View style={st.bar}>
         {quota && !quota.unlimited ? (

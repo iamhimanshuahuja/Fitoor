@@ -2,7 +2,7 @@ import ChatLog from './ChatLog';
 import TermsGate from './TermsGate';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { CalendarDays, CalendarRange, TrendingUp, Scale, Dumbbell, FlaskConical, ClipboardList, User, LayoutDashboard, Users, Layers, LogOut, Shield, ChefHat } from 'lucide-react';
-import { IndianRupee } from 'lucide-react';
+import { IndianRupee, MessagesSquare } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { Logo } from './ui';
 import Avatar from './Avatar';
@@ -44,7 +44,7 @@ export function AdminLayout() {
   const items = [
     { to: '/admin', label: 'Overview', icon: LayoutDashboard, end: true },
     { to: '/admin/users', label: 'Clients', icon: Users },
-    ...(isSuper ? [{ to: '/admin/coaches', label: 'Coaches', icon: Shield }, { to: '/admin/pricing', label: 'Pricing', icon: IndianRupee }] : []),
+    ...(isSuper ? [{ to: '/admin/coaches', label: 'Coaches', icon: Shield }, { to: '/admin/pricing', label: 'Pricing', icon: IndianRupee }, { to: '/admin/ai-chats', label: 'AI chats', icon: MessagesSquare }] : []),
     { to: '/admin/recipes', label: 'Recipes', icon: ChefHat },
     { to: '/admin/plans', label: isSuper ? 'Plans & library' : 'Library', icon: Layers },
   ];

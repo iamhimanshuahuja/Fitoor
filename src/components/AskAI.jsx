@@ -28,7 +28,7 @@ export default function AskAI({ userId, about = 'self', name }) {
     setBusy(true); setQ('');
     try {
       const data = await buildAskData(userId);
-      const r = await runAI('ask', { question: text, about, data });
+      const r = await runAI('ask', { question: text, about, data, subject_id: about === 'client' ? userId : undefined });
       setThread((t) => [{ q: text, a: r.answer, follow_ups: r.follow_ups || [] }, ...t]);
     } catch (e) {
       setThread((t) => [{ q: text, error: e.message }, ...t]);
@@ -64,7 +64,7 @@ export default function AskAI({ userId, about = 'self', name }) {
           {i === 0 && t.follow_ups?.length > 0 && <div className="chips-row">{t.follow_ups.map((f) => <button key={f} type="button" className="chip" disabled={busy} onClick={() => ask(f)}>{f}</button>)}</div>}
         </div>
       ))}
-      <p className="small muted">AI answers from {about === 'client' ? 'the client’s' : 'your'} logs and can be wrong. Not medical advice.</p>
+      <p className="small muted">AI answers from {about === 'client' ? 'the client’s' : 'your'} logs and can be wrong. Not medical advice. Questions and answers are kept 30 days for quality checks.</p>
     </Card>
   );
 }

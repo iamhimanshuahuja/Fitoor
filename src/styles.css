@@ -1417,7 +1417,7 @@ input[type=radio] { width: 20px !important; height: 20px; min-height: 0; padding
 .plan-quick { display: flex; flex-direction: column; gap: 6px; }
 .chip.chip-log { display: inline-flex; align-items: center; gap: 4px; background: #fff; border: 2px solid var(--ink); font-weight: 700; min-height: 36px; }
 .chip.chip-log:hover:not(:disabled) { background: var(--lime); }
-.chip.chip-log.on { background: var(--lime); box-shadow: var(--pop); }
+.chip.chip-log.on { background: var(--lime); color: var(--ink); border-color: var(--ink); box-shadow: var(--pop); }
 .slot-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; }
 .slot-field textarea, .slot-field input { font-weight: 400; }
 
@@ -1474,3 +1474,16 @@ input[type=radio] { width: 20px !important; height: 20px; min-height: 0; padding
 .tier-card-foot .btn { margin-left: auto; }
 label.check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; font-size: 14px; }
 label.check input { width: 20px; height: 20px; }
+/* ---------- v16 AI chat review (super admin) ---------- */
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.ai-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.ai-filters input { flex: 1; min-width: 160px; }
+.ai-row { border-top: 1px solid var(--line); padding: 10px 0; }
+.ai-row-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ai-row .person { display: inline-flex; align-items: center; gap: 6px; }
+.ai-q { margin: 6px 0 4px; font-weight: 600; white-space: pre-wrap; }
+.ai-a { margin: 0; white-space: pre-wrap; background: #F4FAEF; border-left: 3px solid var(--lime); padding: 6px 10px; border-radius: 6px; font-size: 14px; }
+.ai-row.st-off_topic .ai-a { background: #FFF0F2; border-left-color: var(--chilli); }
+.ai-cards { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+.tag.ai-st.off_topic { background: #FFD9DF; } .tag.ai-st.limit, .tag.ai-st.upgrade { background: #FFF0C7; } .tag.ai-st.error { background: #FFD9DF; }
+.link-btn.person { display: inline-flex; align-items: center; gap: 6px; }

@@ -29,7 +29,7 @@ export default function TermsGate() {
           <Text style={s.h}>{profile.terms_version ? 'We’ve updated our terms' : 'One quick thing before you continue'}</Text>
           <T>Fitoor keeps health data (meals, weight, photos, lab reports{isAdmin ? ' of your clients' : ''}), so here’s how it’s handled:</T>
           {[`Only ${isAdmin ? 'you (for your clients) and the Fitoor admin' : 'you, your coach and the Fitoor admin'} can see logs.`,
-            'AI features send the photo or text you choose to our AI provider to make an estimate. You check every result before it’s saved.',
+            'AI features send the photo or text you choose to our AI provider to make an estimate. You check every result before it’s saved. New: the text of AI chat and Ask AI messages is kept 30 days so the Fitoor admin can check quality and misuse (photos aren’t kept).',
             'Fitoor is not medical advice. Talk to your doctor about health decisions.',
             ...(isAdmin ? ['As a coach you keep client data confidential and use it only for coaching on Fitoor.'] : []),
             'We don’t sell your data or show ads. You can ask us to delete it any time.'].map((l) => <T key={l} small>•  {l}</T>)}

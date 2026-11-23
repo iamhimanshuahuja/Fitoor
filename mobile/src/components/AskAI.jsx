@@ -29,7 +29,7 @@ export default function AskAI({ userId, about = 'self', name }) {
     setBusy(true); setQ('');
     try {
       const data = await buildAskData(userId);
-      const r = await runAI('ask', { question: text, about, data });
+      const r = await runAI('ask', { question: text, about, data, subject_id: about === 'client' ? userId : undefined });
       setThread((t) => [{ q: text, a: r.answer, follow_ups: r.follow_ups || [] }, ...t]);
     } catch (e) { setThread((t) => [{ q: text, error: e.message }, ...t]); }
     aiUsed(); setBusy(false);
@@ -65,7 +65,7 @@ export default function AskAI({ userId, about = 'self', name }) {
           {i === 0 && t.follow_ups?.length ? <Chips>{t.follow_ups.map((f) => <Chip key={f} small label={f} onPress={() => !busy && !out && ask(f)} />)}</Chips> : null}
         </View>
       ))}
-      <T small muted>AI answers from {client ? 'the client’s' : 'your'} logs and can be wrong. Not medical advice.</T>
+      <T small muted>AI answers from {client ? 'the client’s' : 'your'} logs and can be wrong. Not medical advice. Questions and answers are kept 30 days for quality checks.</T>
     </Card>
   );
 }

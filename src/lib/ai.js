@@ -19,9 +19,11 @@ export async function runAI(task, payload) {
   const { data, error } = res;
   if (error) {
     // Try to surface the function's own error message
-    let msg = error.message;
-    try { const j = await error.context?.json?.(); if (j?.error) msg = j.error; } catch { /* ignore */ }
-    throw new Error(isNetworkError(msg) ? 'Connection dropped. Check your internet and tap Try again.' : msg);
+    let msg = error.message, code;
+    try { const j = await error.context?.json?.(); if (j?.error) { msg = j.error; code = j.code; } } catch { /* ignore */ }
+    const err = new Error(isNetworkError(msg) ? 'Connection dropped. Check your internet and tap Try again.' : msg);
+    err.code = code; // 'off_topic' | 'limit' | 'upgrade' — retrying won't help for these
+    throw err;
   }
   return data.result;
 }

@@ -36,7 +36,7 @@ export default function TermsGate() {
         <p>Fitoor keeps health data (meals, weight, photos, lab reports{isAdmin ? ' of your clients' : ''}), so we want you to know how it’s handled:</p>
         <ul>
           <li>Only {isAdmin ? 'you (for your own clients) and the Fitoor admin' : 'you, your coach and the Fitoor admin'} can see logs.</li>
-          <li>AI features send the photo or text you choose to our AI provider to make an estimate. You check every result before it’s saved.</li>
+          <li>AI features send the photo or text you choose to our AI provider to make an estimate. You check every result before it’s saved. New: the text of AI chat and Ask AI messages is kept 30 days so the Fitoor admin can check quality and misuse (photos aren’t kept).</li>
           <li>Fitoor is not medical advice. Talk to your doctor about health decisions.</li>
           {isAdmin && <li>As a coach you keep client data confidential and use it only for coaching on Fitoor.</li>}
           <li>We don’t sell your data or show ads. You can ask us to delete it any time.</li>

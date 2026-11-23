@@ -73,8 +73,9 @@ export default function ChatLog() {
       }]);
     } catch (e) {
       const id = uid();
-      retries.current[id] = { body, photo, userMsg: mine.id };
-      setMsgs((m) => [...m, { id, role: 'ai', at: Date.now(), error: true, retry: true, text: `Couldn’t read that: ${e.message}` }]);
+      const final = !!e.code; // off topic / daily limit / not on plan: say why, no retry
+      if (!final) retries.current[id] = { body, photo, userMsg: mine.id };
+      setMsgs((m) => [...m, { id, role: 'ai', at: Date.now(), error: true, retry: !final, text: final ? e.message : `Couldn’t read that: ${e.message}` }]);
     }
     setBusy(false); aiUsed();
   };
@@ -122,7 +123,7 @@ export default function ChatLog() {
               <div className="chat-empty">
                 <p>Tell me what you ate, weighed, drank or did at the gym, in your own words. Or add a photo of your plate or scale.</p>
                 <div className="chat-examples">{EXAMPLES.map((e) => <button key={e} className="chip" onClick={() => send(e)}>{e}</button>)}</div>
-                <p className="small muted chat-legal">Your message and photo go to our AI provider to make log cards. Nothing is saved until you tap Save. <Link to="/privacy#ai">How we use AI</Link></p>
+                <p className="small muted chat-legal">Your message and photo go to our AI provider to make log cards. Nothing is logged until you tap Save. The text of your chat is kept 30 days for quality checks; photos aren’t kept. Only questions about your Fitoor tracking get an answer. <Link to="/privacy#ai">How we use AI</Link></p>
               </div>
             )}
             {msgs.map((m) => (

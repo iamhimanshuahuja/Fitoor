@@ -14,6 +14,7 @@ export default function Privacy() {
           <li>You log food, weight, workouts and health data so you and your coach can track progress. That’s what we use it for.</li>
           <li>Only you, your current coach and the Fitoor admin can see your logs. Recipes you choose to publish are public, without your name.</li>
           <li>When you use an AI feature, the photo, file or text for that request is sent to our AI provider to get an answer. You always review the answer before anything is saved.</li>
+          <li>Messages to ✨ Log by chat and Ask AI (text only, not photos) and the AI’s replies are kept for 30 days so the Fitoor admin can check quality and stop misuse, then deleted.</li>
           <li>We don’t sell your data and we don’t show ads.</li>
           <li>You can ask us to show, correct or delete your data at any time.</li>
         </ul>
@@ -71,7 +72,10 @@ export default function Privacy() {
         <h3>Who processes it</h3>
         <p>We currently use Anthropic’s Claude models through an API gateway. These services may process data on servers outside India. We use business APIs, not a consumer chatbot. Under the providers’ terms as we understand them, API inputs are not used to train their models by default, but they may keep requests for a limited time for safety and abuse checks. We may change providers; this page will say so.</p>
         <h3>What we keep</h3>
-        <p>We keep only the result you choose to save (for example the meal you logged with its estimate) and a short record that an AI feature was used, how long it took and whether it worked. If you close the scanner without logging, the photo is not stored by us.</p>
+        <p>We keep the result you choose to save (for example the meal you logged with its estimate) and a short record that an AI feature was used, how long it took and whether it worked. If you close the scanner without logging, the photo is not stored by us.</p>
+        <p>For <b>✨ Log by chat</b> and <b>Ask AI</b> we also keep the text of each message and the AI’s reply for <b>30 days</b>, then delete it automatically. Photos you attach are not kept. Only Fitoor’s administrator ({OPERATOR}) can read these, to check that answers are correct, fix problems and stop misuse; your coach cannot see them. They are never sold or used for advertising.</p>
+        <h3>What the AI will answer</h3>
+        <p>The AI only helps with your own Fitoor tracking: meals and plan, calories, weight and inches, habits, workouts, lab values, juice days, recipes and how to use the app. Other questions are refused and still count toward your daily AI allowance.</p>
         <h3>Limits</h3>
         <p>AI estimates can be wrong. Calories can be 20–30% off or more, and lab values or photos can be misread. That’s why you see every result and can edit it before saving. AI output is not medical or dietary advice.</p>
         <h3>Your choice</h3>
@@ -94,6 +98,7 @@ export default function Privacy() {
         <ul>
           <li>Your account and logs: until you delete your account or ask us to.</li>
           <li>Sign-in and activity records: 1 year, then deleted automatically.</li>
+          <li>Text of AI chat and Ask AI messages and replies: 30 days, then deleted automatically.</li>
           <li>Published recipes: until you or we remove them.</li>
           <li>After deletion, copies in backups may last a short while until the backups roll over.</li>
         </ul>
