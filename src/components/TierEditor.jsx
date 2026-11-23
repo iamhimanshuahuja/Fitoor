@@ -29,7 +29,7 @@ export default function TierEditor({ profile, onSaved, compact = false }) {
     <div className="tier-editor">
       {profile.tier_requested && (
         <div className="tier-req">
-          Asked for <b>{tiers?.find((x) => x.key === profile.tier_requested)?.name || profile.tier_requested}</b>.
+          Asked for <b>{tiers?.find((x) => x.key === profile.tier_requested)?.name || profile.tier_requested}</b>
           <button type="button" className="btn btn-pop btn-sm" disabled={busy} onClick={() => { setF({ ...f, tier: profile.tier_requested }); save({ tier: profile.tier_requested, tier_requested: null, tier_requested_at: null }); }}>Approve</button>
           <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => save({ tier_requested: null, tier_requested_at: null })}>Dismiss</button>
         </div>

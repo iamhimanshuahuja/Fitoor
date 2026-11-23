@@ -29,4 +29,10 @@ revoke all on public.ai_messages from anon;
 grant select on public.ai_messages to authenticated;
 
 delete from public.ai_messages where created_at < now() - interval '30 days';
+-- Pricing rule (v15): every feature is on every plan; only the AI allowance differs by tier.
+-- New signups land on "Diet + Fitness", which had no labs/AI, so give every plan the full feature list.
+-- Per-person switches in user_features still override this.
+update public.plans set features = array['diet','meals','meal_photos','weight','habits','gym','supplements','labs','ai']
+where not (features @> array['diet','meals','meal_photos','weight','habits','gym','supplements','labs','ai']);
+
 select 'v16 ok' as status;
