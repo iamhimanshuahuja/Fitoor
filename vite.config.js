@@ -76,6 +76,7 @@ export default defineConfig({
     devSqlRunner(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false, // registered in src/main.jsx so we can check for updates when the app comes back to the front
       includeAssets: ['favicon.ico', 'icon.svg', 'logo.svg', 'logo-inline.svg', 'icons/app-icon-180.png'],
       manifest: {
         name: 'Fitoor — Plate se PR tak',
@@ -91,7 +92,7 @@ export default defineConfig({
           { src: '/icons/app-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: { navigateFallbackDenylist: [/^\/\.netlify/, /^\/__dev/, /^\/sitemap\.xml/, /^\/robots\.txt/] },
+      workbox: { skipWaiting: true, clientsClaim: true, cleanupOutdatedCaches: true, navigateFallbackDenylist: [/^\/\.netlify/, /^\/__dev/, /^\/sitemap\.xml/, /^\/robots\.txt/] },
     }),
   ],
   server: { port: 5173, host: true },
