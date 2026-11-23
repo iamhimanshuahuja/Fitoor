@@ -130,7 +130,7 @@ function GoalPicker() {
 }
 
 const FAQ = [
-  ['Is it free?', 'Yes. The Free plan has every feature and 3 AI chat logs a day. Plus (₹999/month) and Pro (₹1,999/month) only add more AI. See Pricing above.'],
+  ['Is it free?', 'Yes. The Free plan has every feature and 3 AI chats a day. Plus (₹999/month) and Pro (₹1,999/month) only add more AI. See Pricing above.'],
   ['Do I need to download an app?', 'No. Open it in your phone’s browser and add it to your home screen. It opens full-screen like an app and uses your camera directly.'],
   ['Does it work on iPhone?', 'Yes. In Safari tap Share → Add to Home Screen.'],
   ['Who can see my photos and reports?', 'Only you and your coach. Photos are stored privately and compressed before upload.'],
@@ -292,9 +292,8 @@ function Pricing({ dest }) {
             <h3>{t.name}</h3>
             <p className="h-price-amt">{t.price_inr ? <>{inr(t.price_inr)}<span>/month</span></> : '₹0'}</p>
             <ul>
-              <li><b>{t.chat_per_day}</b> AI chat logs a day</li>
-              <li>{t.can_ask ? 'Ask AI anything about your data, anywhere in the app' : 'Ask AI not included'}</li>
-              <li>All tracking features and coach notes</li>
+              <li><b>{t.chat_per_day}</b> AI chats a day</li>
+              <li>{t.can_ask ? 'Ask AI questions about your own logs, on the Progress page (each one counts as a chat)' : 'No Ask AI'}</li>
             </ul>
             {t.blurb && <p className="h-price-blurb">{t.blurb}</p>}
             <Link className={`btn ${t.price_inr ? 'btn-pop' : 'btn-primary'}`} to={dest || '/signup'}>{dest ? 'Open Fitoor' : t.price_inr ? `Start free, upgrade later` : 'Start free'}</Link>

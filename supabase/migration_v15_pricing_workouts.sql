@@ -14,9 +14,9 @@ create table if not exists public.ai_tiers (
   updated_at   timestamptz not null default now()
 );
 insert into public.ai_tiers (key, name, price_inr, chat_per_day, can_ask, blurb, sort) values
-  ('free', 'Free', 0, 3, false, 'Everything in Fitoor. 3 AI chat logs a day.', 1),
-  ('plus', 'Plus', 999, 19, false, 'Everything in Fitoor. 19 AI chat logs a day.', 2),
-  ('pro',  'Pro', 1999, 50, true, 'Everything in Fitoor. 50 AI chats a day + Ask AI anywhere.', 3)
+  ('free', 'Free', 0, 3, false, null, 1),
+  ('plus', 'Plus', 999, 19, false, null, 2),
+  ('pro',  'Pro', 1999, 50, true, null, 3)
 on conflict (key) do nothing;
 
 alter table public.ai_tiers enable row level security;
